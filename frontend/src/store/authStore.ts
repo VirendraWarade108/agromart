@@ -18,16 +18,15 @@ export interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  
-  // Actions
+
   setUser: (user: User) => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
   login: (user: User, accessToken: string, refreshToken: string) => void;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   setLoading: (loading: boolean) => void;
-  
-  // Computed
+  checkAuth: () => Promise<void>;
+
   isAdmin: () => boolean;
   getUserInitials: () => string;
 }
@@ -42,23 +41,14 @@ const useAuthStore = create<AuthState>()(
       isLoading: false,
 
       setUser: (user) => {
-        set({
-          user,
-          isAuthenticated: !!user,
-        });
+        set({ user, isAuthenticated: !!user });
       },
 
       setTokens: (accessToken, refreshToken) => {
-        set({
-          accessToken,
-          refreshToken,
-        });
-        
-        // Store tokens in localStorage for API interceptor
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('access_token', accessToken);
-          localStorage.setItem('refresh_token', refreshToken);
-        }
+        set({ accessToken, refreshToken });
+
+        localStorage.setItem('access_token', accessToken);
+        localStorage.setItem('refresh_token', refreshToken);
       },
 
       login: (user, accessToken, refreshToken) => {
@@ -67,14 +57,11 @@ const useAuthStore = create<AuthState>()(
           accessToken,
           refreshToken,
           isAuthenticated: true,
-          isLoading: false,
+          isLoading: false
         });
-        
-        // Store tokens in localStorage
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('access_token', accessToken);
-          localStorage.setItem('refresh_token', refreshToken);
-        }
+
+        localStorage.setItem('access_token', accessToken);
+        localStorage.setItem('refresh_token', refreshToken);
       },
 
       logout: () => {
@@ -83,54 +70,63 @@ const useAuthStore = create<AuthState>()(
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
-          isLoading: false,
+          isLoading: false
         });
-        
-        // Clear tokens from localStorage
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-        }
+
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
       },
 
       updateUser: (updates) => {
-        const currentUser = get().user;
-        if (currentUser) {
-          set({
-            user: { ...currentUser, ...updates },
+        const current = get().user;
+        if (current) set({ user: { ...current, ...updates } });
+      },
+
+      setLoading: (loading) => set({ isLoading: loading }),
+
+      checkAuth: async () => {
+        const token = get().accessToken;
+        if (!token) return get().logout();
+
+        try {
+          set({ isLoading: true });
+
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           });
+
+          if (!res.ok) throw new Error("Auth failed");
+
+          const user = await res.json();
+          set({ user, isAuthenticated: true });
+
+        } catch (error) {
+          get().logout();
+        } finally {
+          set({ isLoading: false });
         }
       },
 
-      setLoading: (loading) => {
-        set({ isLoading: loading });
-      },
+      isAdmin: () => get().user?.role === 'admin',
 
-      isAdmin: () => {
-        return get().user?.role === 'admin';
-      },
-
-      getUserInitials: () => {
-        const user = get().user;
-        if (!user) return '';
-        
-        return user.fullName
-          .split(' ')
+      getUserInitials: () =>
+        get().user?.fullName
+          ?.split(' ')
           .map((n) => n[0])
           .join('')
           .toUpperCase()
-          .slice(0, 2);
-      },
+          .slice(0, 2) || ''
     }),
     {
       name: 'agromart-auth-storage',
-      // Only persist user and authentication state
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
-        isAuthenticated: state.isAuthenticated,
-      }),
+        isAuthenticated: state.isAuthenticated
+      })
     }
   )
 );

@@ -67,7 +67,7 @@ export default function HomePage() {
             className="mb-8"
           >
             {/* Trust Badge */}
-            <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-500/20 backdrop-blur-xl border-2 border-green-400/40 mb-8 shadow-lg shadow-green-500/20">
+            <div className="mt-8 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-500/20 backdrop-blur-xl border-2 border-green-400/40 mb-8 shadow-lg shadow-green-500/20">
               <Sparkles className="w-5 h-5 text-green-300" />
               <span className="text-green-100 font-bold text-sm tracking-wide">INDIA'S #1 AGRICULTURE MARKETPLACE</span>
             </div>
