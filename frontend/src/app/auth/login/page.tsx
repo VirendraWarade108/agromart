@@ -3,20 +3,48 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, Leaf, ArrowRight, Shield, CheckCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Leaf, ArrowRight, Shield, CheckCircle, Loader2 } from 'lucide-react';
+import { GuestGuard } from '@/components/shared/AuthGuard';
+import useAuth from '@/hooks/useAuth';
 
-export default function LoginPage() {
+function LoginPageContent() {
+  const { login, isLoading, error, clearError } = useAuth();
+  
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     remember: false
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic
-    console.log('Login:', formData);
+    
+    // Clear previous errors
+    setFormErrors({});
+    clearError();
+    
+    // Validate
+    const errors: Record<string, string> = {};
+    if (!formData.email) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'Please enter a valid email';
+    }
+    if (!formData.password) {
+      errors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    
+    // Submit
+    await login(formData);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,6 +53,28 @@ export default function LoginPage() {
       ...formData,
       [name]: type === 'checkbox' ? checked : value
     });
+    
+    // Clear field error on change
+    if (formErrors[name]) {
+      setFormErrors({ ...formErrors, [name]: '' });
+    }
+  };
+
+  // Demo credentials helper
+  const fillDemoCredentials = (role: 'user' | 'admin') => {
+    if (role === 'admin') {
+      setFormData({
+        email: 'admin@agromart.com',
+        password: 'admin123',
+        remember: false
+      });
+    } else {
+      setFormData({
+        email: 'user@agromart.com',
+        password: 'user123',
+        remember: false
+      });
+    }
   };
 
   const benefits = [
@@ -131,6 +181,34 @@ export default function LoginPage() {
                   </p>
                 </div>
 
+                {/* Global Error */}
+                {error && (
+                  <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl">
+                    <p className="text-red-700 font-semibold text-sm">{error.message}</p>
+                  </div>
+                )}
+
+                {/* Demo Credentials Helper */}
+                <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                  <p className="text-blue-900 font-bold text-sm mb-2">Quick Login (Demo):</p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fillDemoCredentials('user')}
+                      className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all"
+                    >
+                      User Demo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fillDemoCredentials('admin')}
+                      className="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-all"
+                    >
+                      Admin Demo
+                    </button>
+                  </div>
+                </div>
+
                 {/* Login Form */}
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Email */}
@@ -146,10 +224,15 @@ export default function LoginPage() {
                         value={formData.email}
                         onChange={handleChange}
                         placeholder="your@email.com"
-                        required
-                        className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 font-semibold text-gray-900 transition-all"
+                        disabled={isLoading}
+                        className={`w-full pl-12 pr-4 py-4 border-2 rounded-xl focus:outline-none font-semibold text-gray-900 transition-all ${
+                          formErrors.email ? 'border-red-500' : 'border-gray-200 focus:border-green-400'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                       />
                     </div>
+                    {formErrors.email && (
+                      <p className="text-red-600 text-sm font-semibold mt-1">{formErrors.email}</p>
+                    )}
                   </div>
 
                   {/* Password */}
@@ -165,13 +248,16 @@ export default function LoginPage() {
                         value={formData.password}
                         onChange={handleChange}
                         placeholder="Enter your password"
-                        required
-                        className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 font-semibold text-gray-900 transition-all"
+                        disabled={isLoading}
+                        className={`w-full pl-12 pr-12 py-4 border-2 rounded-xl focus:outline-none font-semibold text-gray-900 transition-all ${
+                          formErrors.password ? 'border-red-500' : 'border-gray-200 focus:border-green-400'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        disabled={isLoading}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                       >
                         {showPassword ? (
                           <EyeOff className="w-5 h-5" />
@@ -180,6 +266,9 @@ export default function LoginPage() {
                         )}
                       </button>
                     </div>
+                    {formErrors.password && (
+                      <p className="text-red-600 text-sm font-semibold mt-1">{formErrors.password}</p>
+                    )}
                   </div>
 
                   {/* Remember & Forgot */}
@@ -190,7 +279,8 @@ export default function LoginPage() {
                         name="remember"
                         checked={formData.remember}
                         onChange={handleChange}
-                        className="w-5 h-5 text-green-600 rounded border-2 border-gray-300 focus:ring-2 focus:ring-green-500"
+                        disabled={isLoading}
+                        className="w-5 h-5 text-green-600 rounded border-2 border-gray-300 focus:ring-2 focus:ring-green-500 disabled:opacity-50"
                       />
                       <span className="text-gray-700 font-semibold group-hover:text-gray-900">
                         Remember me
@@ -207,10 +297,20 @@ export default function LoginPage() {
                   {/* Login Button */}
                   <button
                     type="submit"
-                    className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-black text-lg rounded-2xl shadow-2xl hover:scale-105 transition-all flex items-center justify-center gap-2"
+                    disabled={isLoading}
+                    className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-black text-lg rounded-2xl shadow-2xl hover:scale-105 transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Login to Account
-                    <ArrowRight className="w-5 h-5" />
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Logging in...
+                      </>
+                    ) : (
+                      <>
+                        Login to Account
+                        <ArrowRight className="w-5 h-5" />
+                      </>
+                    )}
                   </button>
                 </form>
 
@@ -226,7 +326,11 @@ export default function LoginPage() {
 
                 {/* Social Login */}
                 <div className="space-y-3">
-                  <button className="w-full py-4 px-6 bg-white border-2 border-gray-200 hover:border-gray-300 rounded-xl font-bold text-gray-900 transition-all flex items-center justify-center gap-3 hover:shadow-lg">
+                  <button 
+                    type="button"
+                    disabled={isLoading}
+                    className="w-full py-4 px-6 bg-white border-2 border-gray-200 hover:border-gray-300 rounded-xl font-bold text-gray-900 transition-all flex items-center justify-center gap-3 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -261,5 +365,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <GuestGuard redirectTo="/dashboard">
+      <LoginPageContent />
+    </GuestGuard>
   );
 }

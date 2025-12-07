@@ -3,9 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, Leaf, ArrowRight, Shield, CheckCircle, User, Phone } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Leaf, ArrowRight, Shield, CheckCircle, User, Phone, Loader2 } from 'lucide-react';
+import { GuestGuard } from '@/components/shared/AuthGuard';
+import useAuth from '@/hooks/useAuth';
 
-export default function RegisterPage() {
+function RegisterPageContent() {
+  const { register, isLoading, error, clearError } = useAuth();
+  
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -16,15 +20,60 @@ export default function RegisterPage() {
     confirmPassword: '',
     agree: false
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!');
+    
+    // Clear previous errors
+    setFormErrors({});
+    clearError();
+    
+    // Validate
+    const errors: Record<string, string> = {};
+    
+    if (!formData.fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    } else if (formData.fullName.trim().length < 2) {
+      errors.fullName = 'Name must be at least 2 characters';
+    }
+    
+    if (!formData.email) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'Please enter a valid email';
+    }
+    
+    if (!formData.phone) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^[6-9]\d{9}$/.test(formData.phone.replace(/\s+/g, ''))) {
+      errors.phone = 'Please enter a valid 10-digit Indian phone number';
+    }
+    
+    if (!formData.password) {
+      errors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    
+    if (!formData.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    
+    if (!formData.agree) {
+      errors.agree = 'You must agree to the terms and conditions';
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
-    // Handle registration logic
-    console.log('Register:', formData);
+    
+    // Submit
+    const { confirmPassword, agree, ...registrationData } = formData;
+    await register(registrationData);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,6 +82,11 @@ export default function RegisterPage() {
       ...formData,
       [name]: type === 'checkbox' ? checked : value
     });
+    
+    // Clear field error on change
+    if (formErrors[name]) {
+      setFormErrors({ ...formErrors, [name]: '' });
+    }
   };
 
   const benefits = [
@@ -144,6 +198,13 @@ export default function RegisterPage() {
                   </p>
                 </div>
 
+                {/* Global Error */}
+                {error && (
+                  <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl">
+                    <p className="text-red-700 font-semibold text-sm">{error.message}</p>
+                  </div>
+                )}
+
                 {/* Registration Form */}
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Full Name */}
@@ -159,10 +220,15 @@ export default function RegisterPage() {
                         value={formData.fullName}
                         onChange={handleChange}
                         placeholder="Enter your full name"
-                        required
-                        className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 font-semibold text-gray-900 transition-all"
+                        disabled={isLoading}
+                        className={`w-full pl-12 pr-4 py-4 border-2 rounded-xl focus:outline-none font-semibold text-gray-900 transition-all ${
+                          formErrors.fullName ? 'border-red-500' : 'border-gray-200 focus:border-green-400'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                       />
                     </div>
+                    {formErrors.fullName && (
+                      <p className="text-red-600 text-sm font-semibold mt-1">{formErrors.fullName}</p>
+                    )}
                   </div>
 
                   {/* Email */}
@@ -178,10 +244,15 @@ export default function RegisterPage() {
                         value={formData.email}
                         onChange={handleChange}
                         placeholder="your@email.com"
-                        required
-                        className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 font-semibold text-gray-900 transition-all"
+                        disabled={isLoading}
+                        className={`w-full pl-12 pr-4 py-4 border-2 rounded-xl focus:outline-none font-semibold text-gray-900 transition-all ${
+                          formErrors.email ? 'border-red-500' : 'border-gray-200 focus:border-green-400'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                       />
                     </div>
+                    {formErrors.email && (
+                      <p className="text-red-600 text-sm font-semibold mt-1">{formErrors.email}</p>
+                    )}
                   </div>
 
                   {/* Phone */}
@@ -196,11 +267,16 @@ export default function RegisterPage() {
                         name="phone"
                         value={formData.phone}
                         onChange={handleChange}
-                        placeholder="+91 98765 43210"
-                        required
-                        className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 font-semibold text-gray-900 transition-all"
+                        placeholder="98765 43210"
+                        disabled={isLoading}
+                        className={`w-full pl-12 pr-4 py-4 border-2 rounded-xl focus:outline-none font-semibold text-gray-900 transition-all ${
+                          formErrors.phone ? 'border-red-500' : 'border-gray-200 focus:border-green-400'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                       />
                     </div>
+                    {formErrors.phone && (
+                      <p className="text-red-600 text-sm font-semibold mt-1">{formErrors.phone}</p>
+                    )}
                   </div>
 
                   {/* Password */}
@@ -216,13 +292,16 @@ export default function RegisterPage() {
                         value={formData.password}
                         onChange={handleChange}
                         placeholder="Create a strong password"
-                        required
-                        className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 font-semibold text-gray-900 transition-all"
+                        disabled={isLoading}
+                        className={`w-full pl-12 pr-12 py-4 border-2 rounded-xl focus:outline-none font-semibold text-gray-900 transition-all ${
+                          formErrors.password ? 'border-red-500' : 'border-gray-200 focus:border-green-400'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        disabled={isLoading}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                       >
                         {showPassword ? (
                           <EyeOff className="w-5 h-5" />
@@ -231,6 +310,9 @@ export default function RegisterPage() {
                         )}
                       </button>
                     </div>
+                    {formErrors.password && (
+                      <p className="text-red-600 text-sm font-semibold mt-1">{formErrors.password}</p>
+                    )}
                   </div>
 
                   {/* Confirm Password */}
@@ -246,13 +328,16 @@ export default function RegisterPage() {
                         value={formData.confirmPassword}
                         onChange={handleChange}
                         placeholder="Re-enter your password"
-                        required
-                        className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-400 font-semibold text-gray-900 transition-all"
+                        disabled={isLoading}
+                        className={`w-full pl-12 pr-12 py-4 border-2 rounded-xl focus:outline-none font-semibold text-gray-900 transition-all ${
+                          formErrors.confirmPassword ? 'border-red-500' : 'border-gray-200 focus:border-green-400'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        disabled={isLoading}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                       >
                         {showConfirmPassword ? (
                           <EyeOff className="w-5 h-5" />
@@ -261,6 +346,9 @@ export default function RegisterPage() {
                         )}
                       </button>
                     </div>
+                    {formErrors.confirmPassword && (
+                      <p className="text-red-600 text-sm font-semibold mt-1">{formErrors.confirmPassword}</p>
+                    )}
                   </div>
 
                   {/* Terms & Conditions */}
@@ -271,8 +359,8 @@ export default function RegisterPage() {
                         name="agree"
                         checked={formData.agree}
                         onChange={handleChange}
-                        required
-                        className="w-5 h-5 text-green-600 rounded border-2 border-gray-300 focus:ring-2 focus:ring-green-500 mt-0.5 flex-shrink-0"
+                        disabled={isLoading}
+                        className="w-5 h-5 text-green-600 rounded border-2 border-gray-300 focus:ring-2 focus:ring-green-500 mt-0.5 flex-shrink-0 disabled:opacity-50"
                       />
                       <span className="text-gray-700 font-semibold text-sm leading-relaxed group-hover:text-gray-900">
                         I agree to AgroMart's{' '}
@@ -285,15 +373,28 @@ export default function RegisterPage() {
                         </Link>
                       </span>
                     </label>
+                    {formErrors.agree && (
+                      <p className="text-red-600 text-sm font-semibold mt-1 ml-8">{formErrors.agree}</p>
+                    )}
                   </div>
 
                   {/* Register Button */}
                   <button
                     type="submit"
-                    className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-black text-lg rounded-2xl shadow-2xl hover:scale-105 transition-all flex items-center justify-center gap-2"
+                    disabled={isLoading}
+                    className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-black text-lg rounded-2xl shadow-2xl hover:scale-105 transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Create Account
-                    <ArrowRight className="w-5 h-5" />
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Creating Account...
+                      </>
+                    ) : (
+                      <>
+                        Create Account
+                        <ArrowRight className="w-5 h-5" />
+                      </>
+                    )}
                   </button>
                 </form>
 
@@ -309,7 +410,11 @@ export default function RegisterPage() {
 
                 {/* Social Registration */}
                 <div className="space-y-3">
-                  <button className="w-full py-4 px-6 bg-white border-2 border-gray-200 hover:border-gray-300 rounded-xl font-bold text-gray-900 transition-all flex items-center justify-center gap-3 hover:shadow-lg">
+                  <button 
+                    type="button"
+                    disabled={isLoading}
+                    className="w-full py-4 px-6 bg-white border-2 border-gray-200 hover:border-gray-300 rounded-xl font-bold text-gray-900 transition-all flex items-center justify-center gap-3 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -353,5 +458,13 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <GuestGuard redirectTo="/dashboard">
+      <RegisterPageContent />
+    </GuestGuard>
   );
 }
