@@ -30,9 +30,10 @@ export default function ProductCard({
   const { addToCart, isInCart } = useCart();
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
 
   /**
-   * Handle add to cart
+   * Handle add to cart with debounce
    */
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -45,6 +46,11 @@ export default function ProductCard({
 
     if (isInCart(product.id)) {
       showWarningToast('Product is already in your cart');
+      return;
+    }
+
+    // Prevent double-click
+    if (isAddingToCart) {
       return;
     }
 
@@ -74,15 +80,31 @@ export default function ProductCard({
     e.preventDefault();
     e.stopPropagation();
 
-    setIsWishlisted(!isWishlisted);
-    
-    if (onAddToWishlist) {
-      await onAddToWishlist(product.id);
+    // Prevent double-click
+    if (isAddingToWishlist) {
+      return;
     }
 
-    showSuccessToast(
-      isWishlisted ? 'Removed from wishlist' : 'Added to wishlist'
-    );
+    setIsAddingToWishlist(true);
+    const wasWishlisted = isWishlisted;
+    
+    try {
+      setIsWishlisted(!isWishlisted);
+      
+      if (onAddToWishlist) {
+        await onAddToWishlist(product.id);
+      }
+
+      showSuccessToast(
+        !wasWishlisted ? 'Added to wishlist' : 'Removed from wishlist'
+      );
+    } catch (error) {
+      // Revert on error
+      setIsWishlisted(wasWishlisted);
+      showWarningToast('Failed to update wishlist');
+    } finally {
+      setIsAddingToWishlist(false);
+    }
   };
 
   /**
@@ -181,7 +203,10 @@ export default function ProductCard({
             </button>
             <button
               onClick={handleWishlist}
-              className="p-3 border-2 border-gray-200 hover:border-pink-400 hover:bg-pink-50 rounded-xl transition-all"
+              disabled={isAddingToWishlist}
+              className="p-3 border-2 border-gray-200 hover:border-pink-400 hover:bg-pink-50 rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+              title={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
             >
               <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-pink-500 text-pink-500' : 'text-gray-600'}`} />
             </button>
@@ -216,7 +241,10 @@ export default function ProductCard({
         {/* Wishlist */}
         <button
           onClick={handleWishlist}
-          className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-pink-50 transition-all opacity-0 group-hover:opacity-100"
+          disabled={isAddingToWishlist}
+          className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-pink-50 transition-all opacity-0 group-hover:opacity-100 disabled:opacity-60 disabled:cursor-not-allowed"
+          aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+          title={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         >
           <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-pink-500 text-pink-500' : 'text-gray-600'}`} />
         </button>
@@ -226,6 +254,8 @@ export default function ProductCard({
           <button
             onClick={handleQuickView}
             className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+            aria-label="Quick view product"
+            title="Quick view"
           >
             <Eye className="w-5 h-5 text-gray-600" />
           </button>

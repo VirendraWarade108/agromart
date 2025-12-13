@@ -253,6 +253,7 @@ export function useCart(): UseCartReturn {
 
   /**
    * Apply coupon code
+   * Validates with server first before applying to local store
    */
   const applyCoupon = useCallback(async (code: string): Promise<boolean> => {
     setIsLoading(true);
@@ -264,31 +265,32 @@ export function useCart(): UseCartReturn {
         return false;
       }
 
-      // Apply to local store (with validation logic)
-      storeApplyCoupon(code);
-
-      // Sync with server if authenticated
+      // Validate with server first if authenticated
+      let discountAmount = 0;
       if (isAuthenticated) {
         try {
-          await cartApi.applyCoupon(code);
+          const response = await cartApi.applyCoupon(code);
+          if (response.data.success && response.data.data.discount) {
+            discountAmount = response.data.data.discount;
+          } else {
+            showWarningToast('Invalid or expired coupon code');
+            return false;
+          }
         } catch (syncError) {
-          console.error('Failed to sync coupon with server:', syncError);
-          // If server validation fails, remove the coupon
-          storeRemoveCoupon();
+          console.error('Failed to validate coupon with server:', syncError);
           showErrorToast('Invalid coupon code');
           return false;
         }
+      } else {
+        // For unauthenticated users, apply locally
+        storeApplyCoupon(code);
       }
 
-      // Check if discount was applied
-      const newDiscount = useCartStore.getState().discount;
-      if (newDiscount > 0) {
-        showSuccessToast(`Coupon "${code}" applied! You saved ₹${newDiscount}`);
-        return true;
-      } else {
-        showWarningToast('Invalid or expired coupon code');
-        return false;
-      }
+      // Apply to local store (only after server validation)
+      storeApplyCoupon(code);
+
+      showSuccessToast(`Coupon "${code}" applied! You saved ₹${discountAmount}`);
+      return true;
     } catch (err: any) {
       const errorMessage = handleApiError(err);
       setError(errorMessage);

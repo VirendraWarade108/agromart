@@ -1,13 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CreditCard, Wallet, Building, Smartphone, Lock, ChevronLeft, CheckCircle, MapPin, User, Mail, Phone, Home, Truck, Package } from 'lucide-react';
+import { api } from '@/lib/api';
 
 export default function CheckoutPage() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('card');
+  const [loading, setLoading] = useState(false);
+  const [cart, setCart] = useState<any>(null);
+  const [cartItems, setCartItems] = useState<any[]>([]);
   
   const [shippingInfo, setShippingInfo] = useState({
     fullName: '',
@@ -20,16 +26,25 @@ export default function CheckoutPage() {
     landmark: ''
   });
 
-  const cartItems = [
-    { id: 1, name: 'Premium Hybrid Seeds - Tomato', price: 2499, quantity: 2, image: '🍅' },
-    { id: 2, name: 'Organic Fertilizer Pro', price: 1899, quantity: 1, image: '🌿' },
-    { id: 3, name: 'Smart Irrigation Kit', price: 8999, quantity: 1, image: '💦' }
-  ];
+  // Fetch cart from backend
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        const data = await api.getCart();
+        setCart(data);
+        // For now, show placeholder items; real app would fetch products by IDs
+        setCartItems(data.items || []);
+      } catch (err) {
+        console.error('Failed to fetch cart:', err);
+      }
+    };
+    fetchCart();
+  }, []);
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const discount = 1289;
+  const discountAmount = cart?.coupon ? Math.round(subtotal * (cart.coupon.discount || 0) * 100) / 100 : 0;
   const shipping = 0;
-  const total = subtotal - discount + shipping;
+  const total = subtotal - discountAmount + shipping;
 
   const paymentMethods = [
     { id: 'card', name: 'Credit/Debit Card', icon: CreditCard, description: 'Visa, Mastercard, RuPay' },
@@ -43,13 +58,25 @@ export default function CheckoutPage() {
     setShippingInfo({ ...shippingInfo, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (step === 1) {
       setStep(2);
     } else {
-      // Process payment
-      alert('Order placed successfully!');
+      // Process payment — call checkout API
+      setLoading(true);
+      try {
+        const result = await api.checkout({
+          paymentMethod,
+          shippingAddress: shippingInfo,
+        });
+        alert('Order placed successfully! Order ID: ' + result.order.id);
+        router.push('/dashboard/orders');
+      } catch (err) {
+        alert('Checkout failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -398,30 +425,36 @@ export default function CheckoutPage() {
 
               {/* Cart Items */}
               <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
-                {cartItems.map((item) => (
-                  <div key={item.id} className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <div className="text-3xl">{item.image}</div>
+                {cartItems.length > 0 ? (
+                  cartItems.map((item) => (
+                    <div key={item.id} className="flex items-center gap-4">
+                      <div className="w-16 h-16 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <div className="text-3xl">🌾</div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-gray-900 text-sm truncate">Product {item.productId}</h4>
+                        <p className="text-sm text-gray-600 font-semibold">Qty: {item.quantity}</p>
+                      </div>
+                      <p className="font-bold text-gray-900">₹{item.price * item.quantity}</p>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-gray-900 text-sm truncate">{item.name}</h4>
-                      <p className="text-sm text-gray-600 font-semibold">Qty: {item.quantity}</p>
-                    </div>
-                    <p className="font-bold text-gray-900">₹{item.price * item.quantity}</p>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-gray-600">Your cart is empty</p>
+                )}
               </div>
 
               {/* Price Breakdown */}
               <div className="space-y-3 pb-6 mb-6 border-b-2 border-gray-200">
                 <div className="flex justify-between text-gray-700">
                   <span className="font-semibold">Subtotal</span>
-                  <span className="font-bold">₹{subtotal}</span>
+                  <span className="font-bold">₹{subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-green-600">
-                  <span className="font-semibold">Discount</span>
-                  <span className="font-bold">-₹{discount}</span>
-                </div>
+                {cart?.coupon && (
+                  <div className="flex justify-between text-green-600">
+                    <span className="font-semibold">Discount ({(cart.coupon.discount * 100).toFixed(0)}%)</span>
+                    <span className="font-bold">-₹{discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-gray-700">
                   <span className="font-semibold">Shipping</span>
                   <span className="font-bold text-green-600">{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>

@@ -16,12 +16,13 @@ export interface CartState {
   items: CartItem[];
   couponCode: string | null;
   discount: number;
+  syncError: string | null;
 
-  addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => void;
+  addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => boolean;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
-  applyCoupon: (code: string) => void;
+  applyCoupon: (code: string, discountAmount?: number) => void;
   removeCoupon: () => void;
 
   getItemCount: () => number;
@@ -32,6 +33,7 @@ export interface CartState {
   getItemQuantity: (productId: string) => number;
 
   syncWithServer: () => Promise<void>;
+  setSyncError: (error: string | null) => void;
 }
 
 const SHIPPING_THRESHOLD = 5000;
@@ -43,15 +45,34 @@ const useCartStore = create<CartState>()(
       items: [],
       couponCode: null,
       discount: 0,
+      syncError: null,
 
       addItem: (item) => {
+        const quantity = item.quantity || 1;
+        
+        if (quantity < 1 || quantity > 50) {
+          console.warn('Invalid quantity:', quantity);
+          return false;
+        }
+
+        if (get().items.some(i => i.id === item.id)) {
+          console.warn('Duplicate item ID:', item.id);
+          return false;
+        }
+
         const existing = get().items.find((i) => i.productId === item.productId);
 
         if (existing) {
+          const newQuantity = existing.quantity + quantity;
+          if (newQuantity > 50) {
+            console.warn('Quantity exceeds maximum');
+            return false;
+          }
+          
           set({
             items: get().items.map((i) =>
               i.productId === item.productId
-                ? { ...i, quantity: i.quantity + (item.quantity || 1) }
+                ? { ...i, quantity: newQuantity }
                 : i
             ),
           });
@@ -59,10 +80,11 @@ const useCartStore = create<CartState>()(
           set({
             items: [
               ...get().items,
-              { ...item, quantity: item.quantity || 1 }
+              { ...item, quantity }
             ]
           });
         }
+        return true;
       },
 
       removeItem: (productId) =>
@@ -79,22 +101,8 @@ const useCartStore = create<CartState>()(
 
       clearCart: () => set({ items: [], couponCode: null, discount: 0 }),
 
-      applyCoupon: (code) => {
-        const subtotal = get().getSubtotal();
-        const coupons: { [key: string]: number } = {
-          SAVE10: 0.1,
-          SAVE20: 0.2,
-          WELCOME: 0.15,
-        };
-
-        const discount =
-          coupons[code.toUpperCase()]
-            ? subtotal * coupons[code.toUpperCase()]
-            : code.toUpperCase() === "FLAT500"
-            ? 500
-            : 0;
-
-        set({ couponCode: code, discount });
+      applyCoupon: (code, discountAmount = 0) => {
+        set({ couponCode: code, discount: discountAmount });
       },
 
       removeCoupon: () => set({ couponCode: null, discount: 0 }),
@@ -122,7 +130,9 @@ const useCartStore = create<CartState>()(
         if (!token) return;
 
         try {
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/cart/sync`, {
+          set({ syncError: null });
+          
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/cart/sync`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -131,12 +141,20 @@ const useCartStore = create<CartState>()(
             body: JSON.stringify({ items: get().items }),
           });
 
+          if (!response.ok) {
+            throw new Error(`Sync failed with status ${response.status}`);
+          }
+
           console.log("Cart synced with backend");
 
-        } catch (err) {
-          console.error("Cart sync failed", err);
+        } catch (err: any) {
+          const errorMessage = err?.message || 'Cart sync failed';
+          console.error("Cart sync failed:", errorMessage);
+          set({ syncError: errorMessage });
         }
       },
+
+      setSyncError: (error) => set({ syncError: error }),
     }),
     {
       name: 'agromart-cart-storage',

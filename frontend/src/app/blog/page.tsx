@@ -2,12 +2,25 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Search, Calendar, User, ArrowRight, Tag, TrendingUp, BookOpen, Clock, Eye, Heart, MessageCircle } from 'lucide-react';
+import { Search, User, Clock, Eye, Heart, BookOpen, Tag, TrendingUp, ArrowRight } from 'lucide-react';
+
+interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  featured_image: string;
+  category: string;
+  author: string;
+  published_at: string;
+  reading_time: number;
+  views: number;
+  likes: number;
+}
 
 export default function BlogPage() {
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   const categories = [
     { id: 'all', name: 'All Posts', count: 24 },
@@ -147,12 +160,7 @@ export default function BlogPage() {
         </div>
 
         <div className="relative max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
+          <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-500/20 backdrop-blur-xl border-2 border-green-400/40 mb-6 shadow-lg">
               <BookOpen className="w-5 h-5 text-green-300" />
               <span className="text-green-100 font-bold text-sm">AGROMART BLOG</span>
@@ -181,7 +189,7 @@ export default function BlogPage() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -252,11 +260,7 @@ export default function BlogPage() {
           {/* Main Content */}
           <main className="flex-1">
             {/* Featured Post */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-3xl border-2 border-gray-200 shadow-2xl overflow-hidden mb-12"
-            >
+            <div className="bg-white rounded-3xl border-2 border-gray-200 shadow-2xl overflow-hidden mb-12">
               <div className="grid md:grid-cols-2 gap-8">
                 <div className="p-8 md:p-12 flex flex-col justify-center">
                   <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-bold mb-4 self-start">
@@ -291,7 +295,7 @@ export default function BlogPage() {
                   <div className="text-9xl">{featuredPost.image}</div>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
             {/* Blog Grid */}
             <div className="mb-8">
@@ -302,12 +306,8 @@ export default function BlogPage() {
 
             <div className="grid md:grid-cols-2 gap-8">
               {filteredPosts.map((post, idx) => (
-                <motion.article
+                <article
                   key={post.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.1 }}
                   className="bg-white rounded-2xl border-2 border-gray-200 hover:border-green-400 shadow-lg hover:shadow-2xl transition-all overflow-hidden group"
                 >
                   <div className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center h-48">
@@ -348,7 +348,7 @@ export default function BlogPage() {
                       </div>
                     </div>
                   </div>
-                </motion.article>
+                </article>
               ))}
             </div>
 

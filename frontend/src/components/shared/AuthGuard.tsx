@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useAuth from '@/hooks/useAuth';
 import { PageLoader } from './LoadingSpinner';
@@ -29,6 +29,7 @@ export default function AuthGuard({
 }: AuthGuardProps) {
   const router = useRouter();
   const { isAuthenticated, isAdmin, isLoading, user } = useAuth();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     // Wait for auth check to complete
@@ -36,6 +37,7 @@ export default function AuthGuard({
 
     // Check authentication requirement
     if (requireAuth && !isAuthenticated) {
+      setIsRedirecting(true);
       const returnUrl = window.location.pathname;
       router.push(redirectTo || `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
       return;
@@ -43,6 +45,7 @@ export default function AuthGuard({
 
     // Check admin requirement
     if (requireAdmin && !isAdmin) {
+      setIsRedirecting(true);
       router.push(redirectTo || '/dashboard');
       return;
     }
@@ -54,13 +57,8 @@ export default function AuthGuard({
   }
 
   // Show loader while redirecting
-  if (requireAuth && !isAuthenticated) {
-    return <PageLoader message="Redirecting to login..." />;
-  }
-
-  // Show loader while redirecting admin
-  if (requireAdmin && !isAdmin) {
-    return <PageLoader message="Access denied..." />;
+  if (isRedirecting || (requireAuth && !isAuthenticated) || (requireAdmin && !isAdmin)) {
+    return <PageLoader message="Redirecting..." />;
   }
 
   // Render children if authorized
@@ -92,6 +90,7 @@ export function GuestGuard({
 }) {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     // Wait for auth check to complete
@@ -99,6 +98,7 @@ export function GuestGuard({
 
     // Redirect if already authenticated
     if (isAuthenticated) {
+      setIsRedirecting(true);
       router.push(redirectTo);
     }
   }, [isAuthenticated, isLoading, redirectTo, router]);
@@ -109,7 +109,7 @@ export function GuestGuard({
   }
 
   // Show loader while redirecting
-  if (isAuthenticated) {
+  if (isRedirecting || isAuthenticated) {
     return <PageLoader message="Redirecting..." />;
   }
 

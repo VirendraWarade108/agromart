@@ -29,50 +29,94 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Track refresh token promise to prevent multiple refresh attempts
+let refreshPromise: Promise<string | null> | null = null;
+
 /**
- * Response interceptor - Handle errors
+ * Refresh access token
+ */
+const refreshAccessToken = async (): Promise<string | null> => {
+  // If already refreshing, wait for existing promise
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (!refreshToken) {
+      return null;
+    }
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+        refreshToken,
+      });
+      
+      if (response.data?.data?.accessToken) {
+        const newAccessToken = response.data.data.accessToken;
+        localStorage.setItem('access_token', newAccessToken);
+        return newAccessToken;
+      } else {
+        throw new Error('Invalid refresh response');
+      }
+    } catch (error) {
+      // Refresh failed, clear auth
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      window.location.href = '/auth/login';
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+};
+
+/**
+ * Response interceptor - Handle errors and token refresh
  */
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      // Token expired, try to refresh
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (refreshToken) {
-        try {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refreshToken,
-          });
-          const { accessToken } = response.data;
-          localStorage.setItem('access_token', accessToken);
-          // Retry original request
-          if (error.config) {
-            error.config.headers.Authorization = `Bearer ${accessToken}`;
-            return apiClient.request(error.config);
-          }
-        } catch (refreshError) {
-          // Refresh failed, redirect to login
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/auth/login';
-        }
+    const originalConfig = error.config as AxiosRequestConfig & { _retry?: boolean };
+
+    if (error.response?.status === 401 && !originalConfig?._retry) {
+      originalConfig._retry = true;
+      
+      const newToken = await refreshAccessToken();
+      if (newToken && originalConfig) {
+        originalConfig.headers = originalConfig.headers || {};
+        originalConfig.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient.request(originalConfig);
       }
     }
+
     return Promise.reject(error);
   }
 );
 
 /**
- * API Error handler
+ * API Error handler with better response validation
  */
 export const handleApiError = (error: any): string => {
+  // Handle axios error response
   if (error.response) {
-    return error.response.data.message || 'An error occurred';
-  } else if (error.request) {
-    return 'No response from server';
-  } else {
-    return error.message || 'An unexpected error occurred';
+    const data = error.response.data;
+    return data?.message || data?.error || 'An error occurred';
   }
+  
+  // Handle network error (no response)
+  if (error.request && !error.response) {
+    return 'No response from server. Check your connection.';
+  }
+  
+  // Handle request setup error
+  if (error.message === 'Network Error') {
+    return 'Network error. Please check your internet connection.';
+  }
+  
+  return error.message || 'An unexpected error occurred';
 };
 
 // ============================================
@@ -333,6 +377,16 @@ export const adminApi = {
   deleteProduct: (id: string) => 
     apiClient.delete(`/admin/products/${id}`),
   
+  // Categories
+  createCategory: (data: any) => 
+    apiClient.post('/admin/categories', data),
+  
+  updateCategory: (id: string, data: any) => 
+    apiClient.put(`/admin/categories/${id}`, data),
+  
+  deleteCategory: (id: string) => 
+    apiClient.delete(`/admin/categories/${id}`),
+  
   // Orders
   getAllOrders: (params?: any) => 
     apiClient.get('/admin/orders', { params }),
@@ -369,7 +423,9 @@ export const uploadApi = {
     if (folder) formData.append('folder', folder);
     
     return apiClient.post('/upload/image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 
+        'Content-Type': 'multipart/form-data',
+      },
     });
   },
   
@@ -379,7 +435,9 @@ export const uploadApi = {
     if (folder) formData.append('folder', folder);
     
     return apiClient.post('/upload/multiple', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 
+        'Content-Type': 'multipart/form-data',
+      },
     });
   },
 };
@@ -387,5 +445,31 @@ export const uploadApi = {
 // ============================================
 // EXPORT API CLIENT
 // ============================================
+
+// Lightweight wrapper to expose friendly methods used by UI
+export const api = {
+  // cart
+  getCart: async () => {
+    const res = await cartApi.get();
+    return res.data.data;
+  },
+  addToCart: async (productId: string, quantity = 1) => {
+    const res = await cartApi.add(productId, quantity);
+    return res.data.data;
+  },
+  applyCoupon: async (code: string) => {
+    const res = await cartApi.applyCoupon(code);
+    return res.data.data;
+  },
+  checkout: async (payload: { paymentMethod: string; shippingAddress: any }) => {
+    const res = await apiClient.post('/checkout', payload);
+    return res.data.data;
+  },
+  // orders
+  getOrders: async () => {
+    const res = await orderApi.getAll();
+    return res.data.data;
+  },
+};
 
 export default apiClient;

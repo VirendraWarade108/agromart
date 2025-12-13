@@ -20,14 +20,20 @@ export default function CartPage() {
   const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
 
   // Handle item removal with loading state
-  const handleRemove = async (productId: string) => {
+  const handleRemove = async (productId: string): Promise<boolean> => {
     setRemovingItems((prev) => new Set(prev).add(productId));
-    await removeFromCart(productId);
-    setRemovingItems((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(productId);
-      return newSet;
-    });
+    try {
+      await removeFromCart(productId);
+      return true;
+    } catch (err) {
+      return false;
+    } finally {
+      setRemovingItems((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
   };
 
   // Handle clear cart

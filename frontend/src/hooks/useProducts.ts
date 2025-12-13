@@ -164,14 +164,13 @@ export function useProducts(): UseProductsReturn {
 
   /**
    * Fetch single product by slug
+   * Note: Currently uses ID as fallback. Backend should implement /api/products/slug/:slug endpoint
    */
   const fetchProductBySlug = useCallback(async (slug: string): Promise<void> => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // In a real app, you'd have a dedicated endpoint for this
-      // For now, we'll fetch by ID (assuming slug is the ID)
       const response = await productApi.getById(slug);
       
       if (response.data.success) {
@@ -233,6 +232,7 @@ export function useProducts(): UseProductsReturn {
 
   /**
    * Search products
+   * Returns empty list if no results found
    */
   const searchProducts = useCallback(async (
     query: string,
@@ -256,11 +256,18 @@ export function useProducts(): UseProductsReturn {
         // Handle different response formats
         if (Array.isArray(data)) {
           setProducts(data);
+          if (data.length === 0) {
+            setError('No products found matching your search');
+          }
         } else if (data.products) {
           setProducts(data.products);
           
           if (data.pagination) {
             setPagination(data.pagination);
+          }
+          
+          if (data.products.length === 0) {
+            setError('No products found matching your search');
           }
         }
       } else {

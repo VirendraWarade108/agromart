@@ -7,7 +7,6 @@ const PORT = 5000;
 
 app.use(cors());
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
 // Products data
 const products = [
@@ -229,7 +228,6 @@ app.post('/api/auth/refresh', (req, res) => {
 });
 
 // Start
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
 	console.log(`Server running on http://localhost:${PORT}/api`);
 });
-

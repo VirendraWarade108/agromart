@@ -26,6 +26,7 @@ export interface AuthState {
   updateUser: (updates: Partial<User>) => void;
   setLoading: (loading: boolean) => void;
   checkAuth: () => Promise<void>;
+  clearAuth: () => void;
 
   isAdmin: () => boolean;
   getUserInitials: () => string;
@@ -77,6 +78,19 @@ const useAuthStore = create<AuthState>()(
         localStorage.removeItem('refresh_token');
       },
 
+      clearAuth: () => {
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          isLoading: false
+        });
+
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+      },
+
       updateUser: (updates) => {
         const current = get().user;
         if (current) set({ user: { ...current, ...updates } });
@@ -86,7 +100,10 @@ const useAuthStore = create<AuthState>()(
 
       checkAuth: async () => {
         const token = get().accessToken;
-        if (!token) return get().logout();
+        if (!token) {
+          get().logout();
+          return;
+        }
 
         try {
           set({ isLoading: true });
@@ -97,12 +114,21 @@ const useAuthStore = create<AuthState>()(
             }
           });
 
-          if (!res.ok) throw new Error("Auth failed");
+          if (!res.ok) {
+            throw new Error(`Auth check failed with status ${res.status}`);
+          }
 
-          const user = await res.json();
-          set({ user, isAuthenticated: true });
+          const response = await res.json();
+          
+          // Validate response structure
+          if (response.success && response.data) {
+            set({ user: response.data, isAuthenticated: true });
+          } else {
+            throw new Error('Invalid auth response');
+          }
 
         } catch (error) {
+          console.error('Auth check failed:', error);
           get().logout();
         } finally {
           set({ isLoading: false });

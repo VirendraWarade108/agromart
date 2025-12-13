@@ -18,6 +18,11 @@ export default function Header() {
     { name: 'Contact', href: '/contact' }
   ];
 
+  const vendorLinks = [
+    { name: 'For Wholesalers', href: '/vendor/register', highlight: true },
+    { name: 'Vendor Login', href: '/vendor/login' }
+  ];
+
   const categories = [
     { name: 'Seeds', href: '/categories/seeds', icon: '🌱', color: 'hover:bg-green-50' },
     { name: 'Fertilizers', href: '/categories/fertilizers', icon: '🧪', color: 'hover:bg-blue-50' },
@@ -76,6 +81,15 @@ export default function Header() {
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-600 group-hover:w-full transition-all duration-300"></span>
                 </Link>
               ))}
+
+              {/* Vendor Link */}
+              <Link
+                href="/vendor/register"
+                className="text-orange-600 hover:text-orange-700 font-bold text-base transition-colors relative group"
+              >
+                Sell with Us
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-orange-600 group-hover:w-full transition-all duration-300"></span>
+              </Link>
               
               {/* Categories Dropdown */}
               <div className="relative">
@@ -192,6 +206,25 @@ export default function Header() {
                     {link.name}
                   </Link>
                 ))}
+
+                {/* Vendor Links Mobile */}
+                <div className="pt-2 border-t border-gray-200">
+                  <p className="px-4 py-2 text-sm font-black text-gray-900">For Sellers</p>
+                  {vendorLinks.map((link) => (
+                    <Link
+                      key={link.name}
+                      href={link.href}
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`block px-4 py-3 font-bold rounded-lg transition-colors ${
+                        link.highlight
+                          ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                          : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                      }`}
+                    >
+                      {link.name}
+                    </Link>
+                  ))}
+                </div>
                 
                 {/* Mobile Categories */}
                 <div className="pt-2 border-t border-gray-200">

@@ -3,12 +3,13 @@ import Link from 'next/link';
 import { Trash2, Plus, Minus, Heart, AlertCircle } from 'lucide-react';
 import { CartItem as CartItemType } from '@/store/cartStore';
 import { formatPrice } from '@/lib/utils';
+import { showErrorToast } from '@/store/uiStore';
 
 export interface CartItemProps {
   item: CartItemType;
-  onUpdateQuantity: (productId: string, quantity: number) => void;
-  onRemove: (productId: string) => void;
-  onMoveToWishlist?: (productId: string) => void;
+  onUpdateQuantity: (productId: string, quantity: number) => void | Promise<boolean>;
+  onRemove: (productId: string) => void | Promise<boolean>;
+  onMoveToWishlist?: (productId: string) => void | Promise<boolean>;
   isUpdating?: boolean;
   variant?: 'default' | 'compact' | 'checkout';
   showActions?: boolean;
@@ -28,31 +29,70 @@ export default function CartItem({
   showActions = true,
 }: CartItemProps) {
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isUpdatingQuantity, setIsUpdatingQuantity] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
   /**
    * Handle quantity increment
    */
-  const handleIncrement = () => {
-    if (item.quantity >= 50) return; // Max quantity limit
-    onUpdateQuantity(item.productId, item.quantity + 1);
+  const handleIncrement = async () => {
+    if (item.quantity >= 50 || isUpdatingQuantity) return;
+    await updateQuantity(item.quantity + 1);
   };
 
   /**
    * Handle quantity decrement
    */
-  const handleDecrement = () => {
-    if (item.quantity <= 1) return;
-    onUpdateQuantity(item.productId, item.quantity - 1);
+  const handleDecrement = async () => {
+    if (item.quantity <= 1 || isUpdatingQuantity) return;
+    await updateQuantity(item.quantity - 1);
+  };
+
+  /**
+   * Handle quantity change via direct input
+   */
+  const handleQuantityInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value, 10);
+    if (isNaN(value) || value < 1 || value > 50) return;
+    await updateQuantity(value);
+  };
+
+  /**
+   * Update quantity with error handling
+   */
+  const updateQuantity = async (newQuantity: number) => {
+    if (newQuantity === item.quantity) return;
+    
+    setIsUpdatingQuantity(true);
+    try {
+      const success = await onUpdateQuantity(item.productId, newQuantity);
+      if (!success) {
+        showErrorToast('Failed to update quantity');
+      }
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      showErrorToast('Failed to update quantity');
+    } finally {
+      setIsUpdatingQuantity(false);
+    }
   };
 
   /**
    * Handle remove with confirmation
    */
   const handleRemove = async () => {
-    if (window.confirm(`Remove ${item.name} from cart?`)) {
-      setIsRemoving(true);
-      await onRemove(item.productId);
+    setIsRemoving(true);
+    try {
+      const success = await onRemove(item.productId);
+      if (!success) {
+        showErrorToast('Failed to remove item from cart');
+      }
+    } catch (error) {
+      console.error('Error removing item:', error);
+      showErrorToast('Failed to remove item from cart');
+    } finally {
       setIsRemoving(false);
+      setShowRemoveConfirm(false);
     }
   };
 
@@ -60,9 +100,18 @@ export default function CartItem({
    * Handle move to wishlist
    */
   const handleMoveToWishlist = async () => {
-    if (onMoveToWishlist) {
-      await onMoveToWishlist(item.productId);
-      await onRemove(item.productId);
+    try {
+      if (onMoveToWishlist) {
+        const success = await onMoveToWishlist(item.productId);
+        if (success) {
+          await onRemove(item.productId);
+        } else {
+          showErrorToast('Failed to save to wishlist');
+        }
+      }
+    } catch (error) {
+      console.error('Error moving to wishlist:', error);
+      showErrorToast('Failed to save to wishlist');
     }
   };
 
@@ -171,18 +220,26 @@ export default function CartItem({
             <div className="flex items-center bg-gray-100 rounded-xl border-2 border-gray-200">
               <button
                 onClick={handleDecrement}
-                disabled={item.quantity <= 1 || isUpdating || !item.inStock}
+                disabled={item.quantity <= 1 || isUpdatingQuantity || !item.inStock}
                 className="p-3 hover:bg-gray-200 transition-colors rounded-l-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Decrease quantity"
               >
                 <Minus className="w-4 h-4 text-gray-900" />
               </button>
-              <span className="px-6 text-lg font-black text-gray-900 min-w-[60px] text-center">
-                {item.quantity}
-              </span>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={item.quantity}
+                onChange={handleQuantityInput}
+                disabled={isUpdatingQuantity || !item.inStock}
+                className="w-16 px-2 text-lg font-black text-gray-900 bg-transparent border-0 text-center focus:outline-none disabled:opacity-50"
+              />
               <button
                 onClick={handleIncrement}
-                disabled={item.quantity >= 50 || isUpdating || !item.inStock}
+                disabled={item.quantity >= 50 || isUpdatingQuantity || !item.inStock}
                 className="p-3 hover:bg-gray-200 transition-colors rounded-r-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Increase quantity"
               >
                 <Plus className="w-4 h-4 text-gray-900" />
               </button>
@@ -193,7 +250,7 @@ export default function CartItem({
               <div className="text-right">
                 <p className="text-sm text-gray-600 font-semibold">Subtotal</p>
                 <p className="text-2xl font-black text-green-600">
-                  {formatPrice(subtotal)}
+                  {formatPrice(item.price * item.quantity)}
                 </p>
               </div>
             </div>
@@ -215,13 +272,32 @@ export default function CartItem({
 
               {/* Remove (Mobile) */}
               <button
-                onClick={handleRemove}
-                disabled={isRemoving}
+                onClick={() => setShowRemoveConfirm(!showRemoveConfirm)}
                 className="sm:hidden flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all font-semibold text-sm"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Remove</span>
               </button>
+
+              {/* Remove Confirmation (Mobile) */}
+              {showRemoveConfirm && (
+                <div className="sm:hidden flex items-center gap-2 w-full">
+                  <button
+                    onClick={handleRemove}
+                    disabled={isRemoving}
+                    className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {isRemoving ? 'Removing...' : 'Confirm Remove'}
+                  </button>
+                  <button
+                    onClick={() => setShowRemoveConfirm(false)}
+                    disabled={isRemoving}
+                    className="flex-1 px-3 py-2 bg-gray-200 text-gray-900 rounded-lg font-semibold text-sm hover:bg-gray-300 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
 
               {/* Quantity Info */}
               {item.quantity >= 10 && (
