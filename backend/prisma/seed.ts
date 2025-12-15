@@ -3,30 +3,74 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding database...');
+  console.log('🌱 Seeding database...');
 
   // Clear existing data
-  await prisma.orderItem.deleteMany({});
-  await prisma.order.deleteMany({});
-  await prisma.product.deleteMany({});
-  await prisma.category.deleteMany({});
+  await prisma.orderItem.deleteMany();
+  await prisma.order.deleteMany();
+  await prisma.cartItem.deleteMany();
+  await prisma.cart.deleteMany();
+  await prisma.product.deleteMany();
+  await prisma.category.deleteMany();
+  await prisma.address.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.vendor.deleteMany();
 
-  // Categories
-  const seedsCategory = await prisma.category.create({
-    data: { name: 'Seeds', description: 'High-quality seeds', icon: '🌾' },
-  });
+  console.log('✅ Cleared existing data');
 
-  const fertCategory = await prisma.category.create({
-    data: { name: 'Fertilizers', description: 'Organic and chemical fertilizers', icon: '🌱' },
-  });
+  // Create Categories
+  const categories = await Promise.all([
+    prisma.category.create({
+      data: {
+        name: 'Seeds',
+        description: 'High-quality seeds for farming',
+        icon: '🌾',
+      },
+    }),
+    prisma.category.create({
+      data: {
+        name: 'Fertilizers',
+        description: 'Organic and chemical fertilizers',
+        icon: '🌱',
+      },
+    }),
+    prisma.category.create({
+      data: {
+        name: 'Tools',
+        description: 'Farm tools and equipment',
+        icon: '🛠️',
+      },
+    }),
+    prisma.category.create({
+      data: {
+        name: 'Pesticides',
+        description: 'Crop protection solutions',
+        icon: '🦟',
+      },
+    }),
+  ]);
 
-  const toolsCategory = await prisma.category.create({
-    data: { name: 'Tools', description: 'Farm tools and equipment', icon: '🛠️' },
-  });
+  console.log('✅ Created categories');
 
-  // Products - Seeds
-  await prisma.product.create({
+  // Create Vendor
+  const vendor = await prisma.vendor.create({
     data: {
+      businessName: 'AgroMart Supplies',
+      email: 'vendor@agromart.com',
+      phone: '+91-9876543210',
+      password: '$2a$10$YourHashedPasswordHere', // Not used for seed
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      country: 'India',
+      isVerified: true,
+    },
+  });
+
+  console.log('✅ Created vendor');
+
+  // Create Products
+  const products = [
+    {
       name: 'Premium Tomato Seeds',
       slug: 'premium-tomato-seeds',
       price: 199,
@@ -34,48 +78,12 @@ async function main() {
       rating: 4.7,
       reviews: 34,
       image: '/images/products/tomato.jpg',
-      images: ['/images/products/tomato.jpg'],
-      description: 'High-yield hybrid tomato seeds.',
+      description: 'High-yield hybrid tomato seeds suitable for all seasons.',
       stock: 150,
-      categoryId: seedsCategory.id,
+      categoryId: categories[0].id,
+      vendorId: vendor.id,
     },
-  });
-
-  await prisma.product.create({
-    data: {
-      name: 'Pepper Seeds (Hot)',
-      slug: 'pepper-seeds-hot',
-      price: 159,
-      originalPrice: 199,
-      rating: 4.6,
-      reviews: 28,
-      image: '/images/products/pepper.jpg',
-      images: ['/images/products/pepper.jpg'],
-      description: 'Spicy hot pepper seeds, perfect for Indian cuisine.',
-      stock: 120,
-      categoryId: seedsCategory.id,
-    },
-  });
-
-  await prisma.product.create({
-    data: {
-      name: 'Onion Seeds (Yellow)',
-      slug: 'onion-seeds-yellow',
-      price: 129,
-      originalPrice: 159,
-      rating: 4.4,
-      reviews: 15,
-      image: '/images/products/onion.jpg',
-      images: ['/images/products/onion.jpg'],
-      description: 'High-yield yellow onion seeds.',
-      stock: 200,
-      categoryId: seedsCategory.id,
-    },
-  });
-
-  // Products - Fertilizers
-  await prisma.product.create({
-    data: {
+    {
       name: 'Organic Fertilizer 5kg',
       slug: 'organic-fertilizer-5kg',
       price: 499,
@@ -83,100 +91,132 @@ async function main() {
       rating: 4.5,
       reviews: 18,
       image: '/images/products/fertilizer.jpg',
-      images: ['/images/products/fertilizer.jpg'],
-      description: 'Slow release organic fertilizer.',
+      description: 'Slow release organic fertilizer for healthy plant growth.',
       stock: 89,
-      categoryId: fertCategory.id,
+      categoryId: categories[1].id,
+      vendorId: vendor.id,
     },
-  });
-
-  await prisma.product.create({
-    data: {
-      name: 'NPK 10:26:26 Fertilizer',
-      slug: 'npk-10-26-26-fertilizer',
-      price: 349,
-      originalPrice: 449,
-      rating: 4.8,
-      reviews: 42,
-      image: '/images/products/npk-fertilizer.jpg',
-      images: ['/images/products/npk-fertilizer.jpg'],
-      description: 'Complete NPK fertilizer for all crops.',
-      stock: 150,
-      categoryId: fertCategory.id,
-    },
-  });
-
-  await prisma.product.create({
-    data: {
-      name: 'Potassium Nitrate 1kg',
-      slug: 'potassium-nitrate-1kg',
+    {
+      name: 'Garden Trowel Set',
+      slug: 'garden-trowel-set',
       price: 299,
-      originalPrice: 349,
+      originalPrice: 399,
       rating: 4.3,
       reviews: 12,
-      image: '/images/products/potassium.jpg',
-      images: ['/images/products/potassium.jpg'],
-      description: 'Pure potassium nitrate fertilizer.',
-      stock: 75,
-      categoryId: fertCategory.id,
-    },
-  });
-
-  // Products - Tools
-  await prisma.product.create({
-    data: {
-      name: 'Hand Shovel (Steel)',
-      slug: 'hand-shovel-steel',
-      price: 249,
-      originalPrice: 299,
-      rating: 4.6,
-      reviews: 24,
-      image: '/images/products/shovel.jpg',
-      images: ['/images/products/shovel.jpg'],
-      description: 'Durable steel hand shovel for digging.',
-      stock: 60,
-      categoryId: toolsCategory.id,
-    },
-  });
-
-  await prisma.product.create({
-    data: {
-      name: 'Garden Hose (20m)',
-      slug: 'garden-hose-20m',
-      price: 399,
-      originalPrice: 499,
-      rating: 4.7,
-      reviews: 31,
-      image: '/images/products/hose.jpg',
-      images: ['/images/products/hose.jpg'],
-      description: '20-meter high-quality garden hose.',
+      image: '/images/products/trowel.jpg',
+      description: 'Durable stainless steel garden trowel set of 3 pieces.',
       stock: 45,
-      categoryId: toolsCategory.id,
+      categoryId: categories[2].id,
+      vendorId: vendor.id,
     },
-  });
-
-  await prisma.product.create({
-    data: {
+    {
+      name: 'Cabbage Seeds - Hybrid',
+      slug: 'cabbage-seeds-hybrid',
+      price: 149,
+      originalPrice: 199,
+      rating: 4.6,
+      reviews: 27,
+      image: '/images/products/cabbage.jpg',
+      description: 'Premium hybrid cabbage seeds with high germination rate.',
+      stock: 200,
+      categoryId: categories[0].id,
+      vendorId: vendor.id,
+    },
+    {
+      name: 'NPK Fertilizer 10kg',
+      slug: 'npk-fertilizer-10kg',
+      price: 899,
+      originalPrice: 1099,
+      rating: 4.8,
+      reviews: 56,
+      image: '/images/products/npk.jpg',
+      description: 'Balanced NPK fertilizer (19:19:19) for all crops.',
+      stock: 120,
+      categoryId: categories[1].id,
+      vendorId: vendor.id,
+    },
+    {
       name: 'Pruning Shears',
       slug: 'pruning-shears',
-      price: 199,
-      originalPrice: 249,
+      price: 399,
+      originalPrice: 499,
+      rating: 4.4,
+      reviews: 15,
+      image: '/images/products/shears.jpg',
+      description: 'Professional pruning shears with ergonomic handle.',
+      stock: 67,
+      categoryId: categories[2].id,
+      vendorId: vendor.id,
+    },
+    {
+      name: 'Carrot Seeds - Nantes',
+      slug: 'carrot-seeds-nantes',
+      price: 129,
+      originalPrice: 179,
       rating: 4.5,
-      reviews: 19,
-      image: '/images/products/pruning-shears.jpg',
-      images: ['/images/products/pruning-shears.jpg'],
-      description: 'Professional pruning shears for plants.',
-      stock: 90,
-      categoryId: toolsCategory.id,
+      reviews: 22,
+      image: '/images/products/carrot.jpg',
+      description: 'Sweet Nantes variety carrot seeds, perfect for home gardens.',
+      stock: 180,
+      categoryId: categories[0].id,
+      vendorId: vendor.id,
+    },
+    {
+      name: 'Bio Pesticide 500ml',
+      slug: 'bio-pesticide-500ml',
+      price: 349,
+      originalPrice: 449,
+      rating: 4.2,
+      reviews: 9,
+      image: '/images/products/pesticide.jpg',
+      description: 'Organic bio pesticide safe for plants and environment.',
+      stock: 95,
+      categoryId: categories[3].id,
+      vendorId: vendor.id,
+    },
+  ];
+
+  for (const product of products) {
+    await prisma.product.create({ data: product });
+  }
+
+  console.log('✅ Created products');
+
+  // Create Admin User
+  const adminUser = await prisma.user.create({
+    data: {
+      fullName: 'Admin User',
+      email: 'admin@agromart.com',
+      password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
+      isAdmin: true,
     },
   });
 
-  console.log('Seeding completed.');
+  console.log('✅ Created admin user');
+
+  // Create Test User
+  const testUser = await prisma.user.create({
+    data: {
+      fullName: 'Test User',
+      email: 'test@example.com',
+      password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
+      phone: '+91-9876543210',
+    },
+  });
+
+  console.log('✅ Created test user');
+
+  console.log('🎉 Seeding completed successfully!');
+  console.log('\nTest Accounts:');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('Admin: admin@agromart.com / password');
+  console.log('User:  test@example.com / password');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('❌ Seeding failed:', e);
     process.exit(1);
   })
   .finally(async () => {
