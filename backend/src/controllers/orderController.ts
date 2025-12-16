@@ -20,7 +20,7 @@ export const getCart = asyncHandler(async (req: Request, res: Response) => {
     success: true,
     data: {
       items: cart.items,
-      coupon: null, // TODO: Implement coupon system
+      coupon: null, // Coupons are session-based, not stored in DB
     },
   });
 });
@@ -119,6 +119,57 @@ export const clearCart = asyncHandler(async (req: Request, res: Response) => {
     data: {
       items: cart.items,
       coupon: null,
+    },
+  });
+});
+
+/**
+ * Apply coupon to cart (NEW)
+ * POST /api/cart/coupon
+ */
+export const applyCoupon = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
+  const { code } = req.body;
+
+  if (!code) {
+    return res.status(400).json({
+      success: false,
+      message: 'Coupon code is required',
+    });
+  }
+
+  const result = await cartService.applyCouponToCart(userId, code);
+
+  res.json({
+    success: true,
+    message: 'Coupon applied successfully',
+    data: {
+      items: result.cart.items,
+      coupon: {
+        code: result.coupon.code,
+        discount: result.discountAmount,
+      },
+      totals: result.totals,
+    },
+  });
+});
+
+/**
+ * Remove coupon from cart (NEW)
+ * DELETE /api/cart/coupon
+ */
+export const removeCoupon = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
+
+  const result = await cartService.removeCouponFromCart(userId);
+
+  res.json({
+    success: true,
+    message: 'Coupon removed',
+    data: {
+      items: result.cart.items,
+      coupon: null,
+      totals: result.totals,
     },
   });
 });

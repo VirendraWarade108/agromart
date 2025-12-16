@@ -1,5 +1,6 @@
 import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
+import * as couponService from './couponService';
 
 /**
  * Get user's cart with all items
@@ -233,19 +234,58 @@ export const clearCart = async (userId: string) => {
 /**
  * Calculate cart totals
  */
-export const calculateCartTotals = (cart: any, couponDiscount: number = 0) => {
+export const calculateCartTotals = (cart: any, discountAmount: number = 0) => {
   let subtotal = 0;
 
   cart.items.forEach((item: any) => {
     subtotal += item.product.price * item.quantity;
   });
 
-  const discount = (subtotal * couponDiscount) / 100;
-  const total = subtotal - discount;
+  const total = Math.max(0, subtotal - discountAmount);
 
   return {
     subtotal,
-    discount,
+    discount: discountAmount,
     total,
+  };
+};
+
+/**
+ * Apply coupon to cart (NEW)
+ */
+export const applyCouponToCart = async (userId: string, couponCode: string) => {
+  // Get cart
+  const cart = await getCart(userId);
+
+  if (!cart.items || cart.items.length === 0) {
+    throw new AppError('Cart is empty', 400);
+  }
+
+  // Calculate subtotal
+  const totals = calculateCartTotals(cart, 0);
+
+  // Validate coupon
+  const result = await couponService.validateCoupon(couponCode, totals.subtotal);
+
+  return {
+    cart,
+    coupon: result.coupon,
+    discountAmount: result.discountAmount,
+    totals: calculateCartTotals(cart, result.discountAmount),
+  };
+};
+
+/**
+ * Remove coupon from cart (NEW)
+ */
+export const removeCouponFromCart = async (userId: string) => {
+  const cart = await getCart(userId);
+  const totals = calculateCartTotals(cart, 0);
+
+  return {
+    cart,
+    coupon: null,
+    discountAmount: 0,
+    totals,
   };
 };

@@ -30,7 +30,7 @@ model Product {
   price         Int
   originalPrice Int?
   rating        Float?
-  reviews       Int?       @default(0)
+  reviewCount   Int?       @default(0)
   image         String?
   images        Json?
   description   String?
@@ -41,6 +41,8 @@ model Product {
   vendorId      String?
   cartItems     CartItem[]
   orderItems    OrderItem[]
+  wishlist      Wishlist[]
+  reviews       Review[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 }
@@ -79,6 +81,8 @@ model User {
   cart      Cart?
   orders    Order[]
   addresses Address[]
+  wishlist  Wishlist[]
+  reviews   Review[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -145,6 +149,7 @@ model Order {
   status    String      @default("pending")
   coupon    Json?
   items     OrderItem[]
+  tracking      OrderTracking[]
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -166,4 +171,134 @@ model OrderItem {
 
   @@index([orderId])
   @@index([productId])
+}
+
+// ============================================
+// COUPON MODEL
+// ============================================
+model Coupon {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  description   String?
+  type          String    @default("percentage") // "percentage" or "fixed"
+  value         Int       // Percentage (10 = 10%) or Fixed amount (500 = ₹500)
+  minOrderValue Int?      // Minimum order value to apply coupon
+  maxDiscount   Int?      // Maximum discount amount (for percentage coupons)
+  usageLimit    Int?      // Maximum times coupon can be used (null = unlimited)
+  usedCount     Int       @default(0)
+  validFrom     DateTime  @default(now())
+  validUntil    DateTime
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+}
+
+// ============================================
+// WISHLIST MODEL
+// ============================================
+model Wishlist {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId]) // Prevent duplicate entries
+  @@index([userId])
+  @@index([productId])
+}
+
+// ============================================
+// REVIEW MODEL
+// ============================================
+model Review {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  rating    Int      // 1-5 stars
+  title     String?
+  comment   String
+  images    Json?    // Optional review images
+  isVerifiedPurchase Boolean @default(false)
+  helpfulCount Int    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId]) // One review per user per product
+  @@index([productId])
+  @@index([userId])
+  @@index([rating])
+}
+
+// ============================================
+// ORDER TRACKING MODEL
+// ============================================
+model OrderTracking {
+  id          String   @id @default(cuid())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String
+  status      String
+  location    String?
+  description String
+  timestamp   DateTime @default(now())
+  metadata    Json?
+
+  @@index([orderId])
+  @@index([status])
+}    
+
+// ============================================
+// CONTACT MESSAGE MODEL
+// ============================================
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([email])
+}
+
+// ============================================
+// NEWSLETTER SUBSCRIPTION MODEL
+// ============================================
+model Newsletter {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  isActive    Boolean  @default(true)
+  subscribedAt DateTime @default(now())
+  unsubscribedAt DateTime?
+
+  @@index([email])
+  @@index([isActive])
+}
+
+// ============================================
+// FAQ MODEL
+// ============================================
+model FAQ {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  category  String
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+  @@index([order])
 }
