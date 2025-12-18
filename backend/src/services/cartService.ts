@@ -21,6 +21,11 @@ export const getCart = async (userId: string) => {
               originalPrice: true,
               image: true,
               stock: true,
+              category: {
+                select: {
+                  name: true,
+                },
+              },
             },
           },
         },
@@ -44,6 +49,11 @@ export const getCart = async (userId: string) => {
                 originalPrice: true,
                 image: true,
                 stock: true,
+                category: {
+                  select: {
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -52,7 +62,22 @@ export const getCart = async (userId: string) => {
     });
   }
 
-  return cart;
+  // Transform response to match frontend expectations
+  const transformedCart = {
+    ...cart,
+    items: cart.items.map((item) => ({
+      ...item,
+      product: {
+        ...item.product,
+        thumbnail: item.product.image, // Frontend expects 'thumbnail'
+        inStock: (item.product.stock || 0) > 0, // Frontend expects 'inStock' boolean
+        category: item.product.category?.name || 'Uncategorized', // Frontend expects category string
+      },
+      price: item.product.price, // Add price at item level for frontend
+    })),
+  };
+
+  return transformedCart;
 };
 
 /**
@@ -130,11 +155,11 @@ export const addToCart = async (
 };
 
 /**
- * Update cart item quantity
+ * Update cart item quantity by cart item ID
  */
 export const updateCartItem = async (
   userId: string,
-  productId: string,
+  cartItemId: string,
   quantity: number
 ) => {
   // Validate quantity
@@ -144,7 +169,7 @@ export const updateCartItem = async (
 
   // If quantity is 0, remove item
   if (quantity === 0) {
-    return removeFromCart(userId, productId);
+    return removeFromCart(userId, cartItemId);
   }
 
   // Get cart
@@ -156,18 +181,13 @@ export const updateCartItem = async (
     throw new AppError('Cart not found', 404);
   }
 
-  // Check if item exists
+  // Find cart item by ID
   const cartItem = await prisma.cartItem.findUnique({
-    where: {
-      cartId_productId: {
-        cartId: cart.id,
-        productId,
-      },
-    },
+    where: { id: cartItemId },
     include: { product: true },
   });
 
-  if (!cartItem) {
+  if (!cartItem || cartItem.cartId !== cart.id) {
     throw new AppError('Item not in cart', 404);
   }
 
@@ -187,9 +207,9 @@ export const updateCartItem = async (
 };
 
 /**
- * Remove item from cart
+ * Remove item from cart by cart item ID
  */
-export const removeFromCart = async (userId: string, productId: string) => {
+export const removeFromCart = async (userId: string, cartItemId: string) => {
   // Get cart
   const cart = await prisma.cart.findUnique({
     where: { userId },
@@ -199,12 +219,18 @@ export const removeFromCart = async (userId: string, productId: string) => {
     throw new AppError('Cart not found', 404);
   }
 
+  // Verify item belongs to user's cart
+  const cartItem = await prisma.cartItem.findUnique({
+    where: { id: cartItemId },
+  });
+
+  if (!cartItem || cartItem.cartId !== cart.id) {
+    throw new AppError('Item not in cart', 404);
+  }
+
   // Delete item
-  await prisma.cartItem.deleteMany({
-    where: {
-      cartId: cart.id,
-      productId,
-    },
+  await prisma.cartItem.delete({
+    where: { id: cartItemId },
   });
 
   // Return updated cart
@@ -288,4 +314,66 @@ export const removeCouponFromCart = async (userId: string) => {
     discountAmount: 0,
     totals,
   };
+};
+
+/**
+ * Sync cart with server (merge local and server carts)
+ * POST /api/cart/sync
+ */
+export const syncCart = async (userId: string, localItems: any[]) => {
+  // Get or create server cart
+  const serverCart = await getCart(userId);
+
+  // Merge logic: for each local item, add/update in server cart
+  for (const localItem of localItems) {
+    try {
+      // Check if product exists
+      const product = await prisma.product.findUnique({
+        where: { id: localItem.productId },
+      });
+
+      if (!product || !product.stock || product.stock < 1) {
+        // Skip items that are no longer available
+        continue;
+      }
+
+      // Find existing cart item
+      const existingItem = await prisma.cartItem.findUnique({
+        where: {
+          cartId_productId: {
+            cartId: serverCart.id,
+            productId: localItem.productId,
+          },
+        },
+      });
+
+      if (existingItem) {
+        // Update to higher quantity (local or server)
+        const newQuantity = Math.max(existingItem.quantity, localItem.quantity);
+        const cappedQuantity = Math.min(newQuantity, product.stock, 50);
+
+        await prisma.cartItem.update({
+          where: { id: existingItem.id },
+          data: { quantity: cappedQuantity },
+        });
+      } else {
+        // Add new item from local cart
+        const cappedQuantity = Math.min(localItem.quantity, product.stock, 50);
+
+        await prisma.cartItem.create({
+          data: {
+            cartId: serverCart.id,
+            productId: localItem.productId,
+            quantity: cappedQuantity,
+          },
+        });
+      }
+    } catch (error) {
+      console.error(`Failed to sync item ${localItem.productId}:`, error);
+      // Continue with other items
+    }
+  }
+
+  // Return merged cart
+  return getCart(userId);
 };

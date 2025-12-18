@@ -50,40 +50,50 @@ function AnalyticsContent() {
   const fetchAnalytics = async () => {
     setIsLoading(true);
     try {
-      // Mock data for demo
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      setData({
-        revenue: {
-          today: 24500,
-          week: 156800,
-          month: 625400,
-          year: 7891250,
-        },
-        orders: {
-          total: 3456,
-          pending: 145,
-          completed: 3200,
-          cancelled: 111,
-        },
-        customers: {
-          total: 8920,
-          new: 234,
-          active: 5620,
-        },
-        products: {
-          total: 1234,
-          inStock: 1100,
-          lowStock: 134,
-        },
-        topProducts: [
-          { name: 'Premium Seeds Pack', sales: 456, revenue: 1134720 },
-          { name: 'Organic Fertilizer', sales: 389, revenue: 738711 },
-          { name: 'Farm Tools Set', sales: 267, revenue: 534333 },
-        ],
-      });
+      const response = await adminApi.getDashboardStats();
+      
+      if (response.data.success) {
+        setData(response.data.data);
+      }
     } catch (error) {
       const message = handleApiError(error);
       showErrorToast(message, 'Failed to load analytics');
+      
+      // Only show mock data in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Using mock data for development');
+        // Simulate loading delay
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        setData({
+          revenue: {
+            today: 24500,
+            week: 156800,
+            month: 625400,
+            year: 7891250,
+          },
+          orders: {
+            total: 3456,
+            pending: 145,
+            completed: 3200,
+            cancelled: 111,
+          },
+          customers: {
+            total: 8920,
+            new: 234,
+            active: 5620,
+          },
+          products: {
+            total: 1234,
+            inStock: 1100,
+            lowStock: 134,
+          },
+          topProducts: [
+            { name: 'Premium Seeds Pack', sales: 456, revenue: 1134720 },
+            { name: 'Organic Fertilizer', sales: 389, revenue: 738711 },
+            { name: 'Farm Tools Set', sales: 267, revenue: 534333 },
+          ],
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +104,21 @@ function AnalyticsContent() {
   }
 
   if (!data) {
-    return <PageLoader message="Loading..." />;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-green-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <BarChart3 className="w-24 h-24 text-gray-400 mx-auto mb-6" />
+          <h2 className="text-3xl font-black text-white mb-4">No Analytics Data Available</h2>
+          <p className="text-gray-300 font-semibold mb-8">Unable to load analytics data. Please try again later.</p>
+          <button
+            onClick={fetchAnalytics}
+            className="px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const stats = [

@@ -5,13 +5,16 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CreditCard, Wallet, Building, Smartphone, Lock, ChevronLeft, CheckCircle, MapPin, User, Mail, Phone, Home, Truck, Package } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, productApi, handleApiError } from '@/lib/api';
+import { showErrorToast, showSuccessToast } from '@/store/uiStore';
+import { PageLoader } from '@/components/shared/LoadingSpinner';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [loading, setLoading] = useState(false);
+  const [isLoadingCart, setIsLoadingCart] = useState(true);
   const [cart, setCart] = useState<any>(null);
   const [cartItems, setCartItems] = useState<any[]>([]);
   
@@ -29,13 +32,46 @@ export default function CheckoutPage() {
   // Fetch cart from backend
   useEffect(() => {
     const fetchCart = async () => {
+      setIsLoadingCart(true);
       try {
         const data = await api.getCart();
         setCart(data);
-        // For now, show placeholder items; real app would fetch products by IDs
-        setCartItems(data.items || []);
+        
+        // Fetch full product details for cart items
+        if (data.items && data.items.length > 0) {
+          const itemsWithDetails = await Promise.all(
+            data.items.map(async (item: any) => {
+              try {
+                const productResponse = await productApi.getById(item.productId);
+                const product = productResponse.data.data;
+                return {
+                  ...item,
+                  name: product.name,
+                  price: product.price,
+                  image: product.images?.[0] || '/placeholder.png',
+                };
+              } catch (error) {
+                console.error(`Failed to fetch product ${item.productId}:`, error);
+                return {
+                  ...item,
+                  name: `Product ${item.productId}`,
+                  price: 0,
+                  image: '/placeholder.png',
+                };
+              }
+            })
+          );
+          setCartItems(itemsWithDetails);
+        } else {
+          setCartItems([]);
+        }
       } catch (err) {
         console.error('Failed to fetch cart:', err);
+        const message = handleApiError(err);
+        showErrorToast(message, 'Failed to load cart');
+        setCartItems([]);
+      } finally {
+        setIsLoadingCart(false);
       }
     };
     fetchCart();
@@ -70,15 +106,38 @@ export default function CheckoutPage() {
           paymentMethod,
           shippingAddress: shippingInfo,
         });
-        alert('Order placed successfully! Order ID: ' + result.order.id);
+        showSuccessToast(`Order placed successfully! Order ID: ${result.order.id}`);
         router.push('/dashboard/orders');
       } catch (err) {
-        alert('Checkout failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+        const message = handleApiError(err);
+        showErrorToast(message, 'Checkout failed');
       } finally {
         setLoading(false);
       }
     }
   };
+
+  if (isLoadingCart) {
+    return <PageLoader message="Loading checkout..." />;
+  }
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-green-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <Package className="w-24 h-24 text-gray-400 mx-auto mb-6" />
+          <h2 className="text-3xl font-black text-white mb-4">Your cart is empty</h2>
+          <p className="text-gray-300 font-semibold mb-8">Add items to your cart before checking out</p>
+          <Link
+            href="/products"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg"
+          >
+            Browse Products
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-green-900 to-slate-900">
@@ -408,9 +467,10 @@ export default function CheckoutPage() {
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-black text-lg rounded-2xl shadow-2xl hover:scale-105 transition-all"
+                      disabled={loading}
+                      className="flex-1 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-black text-lg rounded-2xl shadow-2xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Place Order
+                      {loading ? 'Processing...' : 'Place Order'}
                     </button>
                   </div>
                 </motion.div>
@@ -425,22 +485,18 @@ export default function CheckoutPage() {
 
               {/* Cart Items */}
               <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
-                {cartItems.length > 0 ? (
-                  cartItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <div className="text-3xl">🌾</div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-gray-900 text-sm truncate">Product {item.productId}</h4>
-                        <p className="text-sm text-gray-600 font-semibold">Qty: {item.quantity}</p>
-                      </div>
-                      <p className="font-bold text-gray-900">₹{item.price * item.quantity}</p>
+                {cartItems.map((item) => (
+                  <div key={item.id} className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                     </div>
-                  ))
-                ) : (
-                  <p className="text-gray-600">Your cart is empty</p>
-                )}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-gray-900 text-sm truncate">{item.name}</h4>
+                      <p className="text-sm text-gray-600 font-semibold">Qty: {item.quantity}</p>
+                    </div>
+                    <p className="font-bold text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</p>
+                  </div>
+                ))}
               </div>
 
               {/* Price Breakdown */}
@@ -464,7 +520,7 @@ export default function CheckoutPage() {
               {/* Total */}
               <div className="flex justify-between items-center mb-6">
                 <span className="text-xl font-black text-gray-900">Total</span>
-                <span className="text-3xl font-black text-green-600">₹{total}</span>
+                <span className="text-3xl font-black text-green-600">₹{total.toFixed(2)}</span>
               </div>
 
               {/* Security Badge */}

@@ -330,3 +330,116 @@ export const cancelOrder = async (orderId: string, userId: string) => {
 
   return updatedOrder;
 };
+
+/**
+ * Get order invoice
+ * GET /api/orders/:id/invoice
+ */
+export const getOrderInvoice = async (orderId: string, userId: string) => {
+  // Get order with full details
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      items: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              image: true,
+              price: true,
+            },
+          },
+        },
+      },
+      user: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    throw new AppError('Order not found', 404);
+  }
+
+  // Verify order belongs to user
+  if (order.userId !== userId) {
+    throw new AppError('Unauthorized to view this invoice', 403);
+  }
+
+  // Calculate invoice details
+  const subtotal = order.items.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+
+  // Extract coupon discount from order.coupon JSON field
+  const couponDiscount =
+    order.coupon && typeof order.coupon === 'object' && 'discount' in order.coupon
+      ? (order.coupon as any).discount
+      : 0;
+
+  const tax = 0; // TODO: Implement tax calculation if needed
+  const shippingFee = 0; // TODO: Implement shipping fee if needed
+  const total = order.total;
+
+  // Build invoice response
+  const invoice = {
+    invoiceNumber: `INV-${order.id.slice(-8).toUpperCase()}`,
+    orderNumber: order.id,
+    invoiceDate: order.createdAt,
+    dueDate: order.createdAt, // Same as invoice date for immediate payment
+    status: order.status,
+
+    // Customer details
+    customer: {
+      id: order.user.id,
+      name: order.user.fullName,
+      email: order.user.email,
+      phone: order.user.phone || 'N/A',
+    },
+
+    // Line items
+    items: order.items.map((item) => ({
+      id: item.id,
+      productId: item.product.id,
+      name: item.product.name,
+      slug: item.product.slug,
+      image: item.product.image,
+      quantity: item.quantity,
+      unitPrice: item.price,
+      total: item.price * item.quantity,
+    })),
+
+    // Financial summary
+    summary: {
+      subtotal,
+      discount: couponDiscount,
+      tax,
+      shipping: shippingFee,
+      total,
+    },
+
+    // Coupon info if applied
+    ...(order.coupon && {
+      coupon: order.coupon,
+    }),
+
+    // Company details (can be moved to config later)
+    company: {
+      name: 'AgroMart',
+      address: 'Agricultural Market Complex, India',
+      email: 'support@agromart.com',
+      phone: '+91-1234567890',
+      website: 'https://agromart.com',
+    },
+  };
+
+  return invoice;
+};

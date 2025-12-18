@@ -86,6 +86,41 @@ export const createReview = asyncHandler(
 );
 
 /**
+ * Create a review for a specific product (frontend compatibility)
+ * POST /api/products/:productId/reviews
+ */
+export const createProductReview = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.userId!;
+    const { productId } = req.params; // Extract from URL params
+    const { rating, title, comment, images } = req.body;
+
+    // Validate required fields
+    if (!rating || !comment) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rating and comment are required',
+      });
+    }
+
+    const review = await reviewService.createReview({
+      userId,
+      productId,
+      rating: parseInt(rating),
+      title,
+      comment,
+      images,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Review created successfully',
+      data: review,
+    });
+  }
+);
+
+/**
  * Update a review
  * PUT /api/reviews/:id
  */

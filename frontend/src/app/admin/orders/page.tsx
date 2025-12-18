@@ -16,7 +16,7 @@ import {
   ChevronRight,
   TrendingUp
 } from 'lucide-react';
-import { orderApi, handleApiError } from '@/lib/api';
+import { orderApi, adminApi, handleApiError } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/store/uiStore';
 import { TableSkeleton } from '@/components/shared/LoadingSpinner';
 import { formatPrice, formatDate } from '@/lib/utils';
@@ -56,10 +56,9 @@ export default function AdminOrdersPage() {
         params.status = selectedStatus;
       }
 
-      const response = await orderApi.getAll(params);
+      const response = await adminApi.getAllOrders(params);
       
       if (response.data.success) {
-        // Handle both array and paginated response
         const data = response.data.data;
         setOrders(Array.isArray(data) ? data : data.orders || []);
       }
@@ -67,52 +66,55 @@ export default function AdminOrdersPage() {
       const message = handleApiError(error);
       showErrorToast(message, 'Failed to load orders');
       
-      // Mock data for development
-      setOrders([
-        {
-          id: '1',
-          orderNumber: 'ORD-2024-001',
-          userId: 'user1',
-          customerName: 'Rajesh Kumar',
-          customerEmail: 'rajesh@example.com',
-          items: [{ name: 'Premium Seeds', quantity: 2, price: 2499 }],
-          total: 4998,
-          status: 'processing',
-          paymentMethod: 'card',
-          paymentStatus: 'completed',
-          shippingAddress: { city: 'Delhi' },
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          orderNumber: 'ORD-2024-002',
-          userId: 'user2',
-          customerName: 'Priya Sharma',
-          customerEmail: 'priya@example.com',
-          items: [{ name: 'Fertilizer Pro', quantity: 1, price: 1899 }],
-          total: 1899,
-          status: 'shipped',
-          paymentMethod: 'upi',
-          paymentStatus: 'completed',
-          shippingAddress: { city: 'Mumbai' },
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          id: '3',
-          orderNumber: 'ORD-2024-003',
-          userId: 'user3',
-          customerName: 'Anil Patel',
-          customerEmail: 'anil@example.com',
-          items: [{ name: 'Irrigation Kit', quantity: 1, price: 8999 }],
-          total: 8999,
-          status: 'delivered',
-          paymentMethod: 'cod',
-          paymentStatus: 'completed',
-          shippingAddress: { city: 'Bangalore' },
-          createdAt: new Date(Date.now() - 172800000).toISOString(),
-          deliveredAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-      ]);
+      // Only show mock data in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Using mock data for development');
+        setOrders([
+          {
+            id: '1',
+            orderNumber: 'ORD-2024-001',
+            userId: 'user1',
+            customerName: 'Rajesh Kumar',
+            customerEmail: 'rajesh@example.com',
+            items: [{ name: 'Premium Seeds', quantity: 2, price: 2499 }],
+            total: 4998,
+            status: 'processing',
+            paymentMethod: 'card',
+            paymentStatus: 'completed',
+            shippingAddress: { city: 'Delhi' },
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: '2',
+            orderNumber: 'ORD-2024-002',
+            userId: 'user2',
+            customerName: 'Priya Sharma',
+            customerEmail: 'priya@example.com',
+            items: [{ name: 'Fertilizer Pro', quantity: 1, price: 1899 }],
+            total: 1899,
+            status: 'shipped',
+            paymentMethod: 'upi',
+            paymentStatus: 'completed',
+            shippingAddress: { city: 'Mumbai' },
+            createdAt: new Date(Date.now() - 86400000).toISOString(),
+          },
+          {
+            id: '3',
+            orderNumber: 'ORD-2024-003',
+            userId: 'user3',
+            customerName: 'Anil Patel',
+            customerEmail: 'anil@example.com',
+            items: [{ name: 'Irrigation Kit', quantity: 1, price: 8999 }],
+            total: 8999,
+            status: 'delivered',
+            paymentMethod: 'cod',
+            paymentStatus: 'completed',
+            shippingAddress: { city: 'Bangalore' },
+            createdAt: new Date(Date.now() - 172800000).toISOString(),
+            deliveredAt: new Date(Date.now() - 86400000).toISOString(),
+          },
+        ]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -121,7 +123,7 @@ export default function AdminOrdersPage() {
   // Update order status
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
     try {
-      // In real app: await adminApi.updateOrderStatus(orderId, newStatus)
+      await adminApi.updateOrderStatus(orderId, newStatus);
       showSuccessToast(`Order status updated to ${newStatus}`);
       fetchOrders();
     } catch (error) {
@@ -132,9 +134,9 @@ export default function AdminOrdersPage() {
 
   // Filter orders by search
   const filteredOrders = orders.filter((order) =>
-    order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.customerEmail.toLowerCase().includes(searchQuery.toLowerCase())
+    order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Status options
@@ -290,7 +292,7 @@ export default function AdminOrdersPage() {
                         {/* Order Number */}
                         <td className="px-6 py-4">
                           <div>
-                            <p className="font-black text-gray-900">{order.orderNumber}</p>
+                            <p className="font-black text-gray-900">{order.orderNumber || `ORD-${order.id.substring(0, 8)}`}</p>
                             <p className="text-sm text-gray-600 font-semibold">ID: {order.id}</p>
                           </div>
                         </td>
@@ -298,8 +300,8 @@ export default function AdminOrdersPage() {
                         {/* Customer */}
                         <td className="px-6 py-4">
                           <div>
-                            <p className="font-bold text-gray-900">{order.customerName}</p>
-                            <p className="text-sm text-gray-600 font-semibold">{order.customerEmail}</p>
+                            <p className="font-bold text-gray-900">{order.customerName || 'N/A'}</p>
+                            <p className="text-sm text-gray-600 font-semibold">{order.customerEmail || 'N/A'}</p>
                           </div>
                         </td>
 
@@ -324,9 +326,9 @@ export default function AdminOrdersPage() {
                         {/* Payment */}
                         <td className="px-6 py-4">
                           <div>
-                            <p className="font-bold text-gray-900 capitalize">{order.paymentMethod}</p>
+                            <p className="font-bold text-gray-900 capitalize">{order.paymentMethod || 'N/A'}</p>
                             <span className={`text-xs font-bold ${order.paymentStatus === 'completed' ? 'text-green-600' : 'text-yellow-600'}`}>
-                              {order.paymentStatus}
+                              {order.paymentStatus || 'pending'}
                             </span>
                           </div>
                         </td>

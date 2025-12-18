@@ -65,40 +65,43 @@ function UserOrdersContent() {
       const message = handleApiError(error);
       showErrorToast(message, 'Failed to load orders');
       
-      // Mock data for development
-      setOrders([
-        {
-          id: '1',
-          orderNumber: 'ORD-2024-001',
-          items: [{ name: 'Premium Seeds', quantity: 2 }],
-          total: 4998,
-          status: 'delivered',
-          paymentMethod: 'card',
-          paymentStatus: 'completed',
-          createdAt: new Date(Date.now() - 172800000).toISOString(),
-          deliveredAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          id: '2',
-          orderNumber: 'ORD-2024-002',
-          items: [{ name: 'Fertilizer Pro', quantity: 1 }],
-          total: 1899,
-          status: 'shipped',
-          paymentMethod: 'upi',
-          paymentStatus: 'completed',
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          id: '3',
-          orderNumber: 'ORD-2024-003',
-          items: [{ name: 'Irrigation Kit', quantity: 1 }],
-          total: 8999,
-          status: 'processing',
-          paymentMethod: 'cod',
-          paymentStatus: 'pending',
-          createdAt: new Date(Date.now() - 43200000).toISOString(),
-        },
-      ]);
+      // Only show mock data in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Using mock data for development');
+        setOrders([
+          {
+            id: '1',
+            orderNumber: 'ORD-2024-001',
+            items: [{ name: 'Premium Seeds', quantity: 2 }],
+            total: 4998,
+            status: 'delivered',
+            paymentMethod: 'card',
+            paymentStatus: 'completed',
+            createdAt: new Date(Date.now() - 172800000).toISOString(),
+            deliveredAt: new Date(Date.now() - 86400000).toISOString(),
+          },
+          {
+            id: '2',
+            orderNumber: 'ORD-2024-002',
+            items: [{ name: 'Fertilizer Pro', quantity: 1 }],
+            total: 1899,
+            status: 'shipped',
+            paymentMethod: 'upi',
+            paymentStatus: 'completed',
+            createdAt: new Date(Date.now() - 86400000).toISOString(),
+          },
+          {
+            id: '3',
+            orderNumber: 'ORD-2024-003',
+            items: [{ name: 'Irrigation Kit', quantity: 1 }],
+            total: 8999,
+            status: 'processing',
+            paymentMethod: 'cod',
+            paymentStatus: 'pending',
+            createdAt: new Date(Date.now() - 43200000).toISOString(),
+          },
+        ]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -259,7 +262,7 @@ function UserOrdersContent() {
                       </div>
                       <div>
                         <p className="text-sm text-gray-600 font-semibold mb-1">Payment</p>
-                        <p className="text-lg font-bold text-gray-900 capitalize">{order.paymentMethod}</p>
+                        <p className="text-lg font-bold text-gray-900 capitalize">{order.paymentMethod || 'N/A'}</p>
                       </div>
                     </div>
 

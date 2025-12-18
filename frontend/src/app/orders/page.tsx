@@ -10,7 +10,6 @@ import { PageLoader, TableSkeleton } from '@/components/shared/LoadingSpinner';
 import { formatPrice, formatDate } from '@/lib/utils';
 import AuthGuard from '@/components/shared/AuthGuard';
 
-
 interface Order {
   id: string;
   orderNumber: string;
@@ -53,32 +52,24 @@ function OrdersPageContent() {
       const message = handleApiError(error);
       showErrorToast(message, 'Failed to load orders');
       
-      // Mock data for development
-      setOrders([
-        {
-          id: '1',
-          orderNumber: 'ORD-2024-001',
-          items: [{ name: 'Premium Seeds', quantity: 2, price: 2499 }],
-          total: 4998,
-          status: 'delivered',
-          paymentMethod: 'card',
-          paymentStatus: 'completed',
-          shippingAddress: { city: 'Delhi' },
-          createdAt: new Date(Date.now() - 172800000).toISOString(),
-          deliveredAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          id: '2',
-          orderNumber: 'ORD-2024-002',
-          items: [{ name: 'Fertilizer Pro', quantity: 1, price: 1899 }],
-          total: 1899,
-          status: 'shipped',
-          paymentMethod: 'upi',
-          paymentStatus: 'completed',
-          shippingAddress: { city: 'Mumbai' },
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-      ]);
+      // Only show mock data in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Using mock data for development');
+        setOrders([
+          {
+            id: '1',
+            orderNumber: 'ORD-2024-001',
+            items: [{ name: 'Premium Seeds', quantity: 2, price: 2499 }],
+            total: 4998,
+            status: 'delivered',
+            paymentMethod: 'card',
+            paymentStatus: 'completed',
+            shippingAddress: { city: 'Delhi' },
+            createdAt: new Date(Date.now() - 172800000).toISOString(),
+            deliveredAt: new Date(Date.now() - 86400000).toISOString(),
+          },
+        ]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -230,7 +221,7 @@ function OrdersPageContent() {
                       </div>
                       <div>
                         <p className="text-sm text-gray-600 font-semibold mb-1">Payment</p>
-                        <p className="text-lg font-bold text-gray-900 capitalize">{order.paymentMethod}</p>
+                        <p className="text-lg font-bold text-gray-900 capitalize">{order.paymentMethod || 'N/A'}</p>
                       </div>
                     </div>
 

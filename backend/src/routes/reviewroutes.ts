@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import * as reviewController from '../controllers/reviewController';
+import * as reviewController from '../controllers/reviewcontroller';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
 const router = Router();
@@ -38,10 +38,20 @@ router.get(
 router.get('/my-reviews', authenticate, reviewController.getMyReviews);
 
 /**
- * Create a review
+ * Create a review (primary endpoint)
  * POST /api/reviews
  */
 router.post('/', authenticate, reviewController.createReview);
+
+/**
+ * Create a review for a specific product (frontend compatibility alias)
+ * POST /api/products/:productId/reviews
+ */
+router.post(
+  '/products/:productId/reviews',
+  authenticate,
+  reviewController.createProductReview
+);
 
 /**
  * Update a review

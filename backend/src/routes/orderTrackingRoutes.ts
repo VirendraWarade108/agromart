@@ -1,6 +1,10 @@
-import { Request, Response } from 'express';
+import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import * as orderTrackingService from '../services/orderTrackingService';
+import { authenticate, requireAdmin } from '../middleware/auth';
+import { Request, Response } from 'express';
+
+const router = Router();
 
 // ============================================
 // USER TRACKING ENDPOINTS
@@ -10,44 +14,56 @@ import * as orderTrackingService from '../services/orderTrackingService';
  * Get order tracking
  * GET /api/orders/:orderId/tracking
  */
-export const getOrderTracking = asyncHandler(
-  async (req: Request, res: Response) => {
+router.get(
+  '/:orderId/tracking',
+  authenticate,
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.userId!;
     const { orderId } = req.params;
 
-    const tracking = await orderTrackingService.getOrderTracking(orderId, userId);
+    const tracking = await orderTrackingService.getOrderTracking(
+      orderId,
+      userId
+    );
 
     res.json({
       success: true,
       data: tracking,
     });
-  }
+  })
 );
 
 /**
  * Get order tracking timeline
  * GET /api/orders/:orderId/timeline
  */
-export const getTrackingTimeline = asyncHandler(
-  async (req: Request, res: Response) => {
+router.get(
+  '/:orderId/timeline',
+  authenticate,
+  asyncHandler(async (req: Request, res: Response) => {
     const userId = req.userId!;
     const { orderId } = req.params;
 
-    const timeline = await orderTrackingService.getTrackingTimeline(orderId, userId);
+    const timeline = await orderTrackingService.getTrackingTimeline(
+      orderId,
+      userId
+    );
 
     res.json({
       success: true,
       data: timeline,
     });
-  }
+  })
 );
 
 /**
  * Get latest tracking status
  * GET /api/orders/:orderId/tracking/latest
  */
-export const getLatestTracking = asyncHandler(
-  async (req: Request, res: Response) => {
+router.get(
+  '/:orderId/tracking/latest',
+  authenticate,
+  asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = req.params;
 
     const latest = await orderTrackingService.getLatestTracking(orderId);
@@ -56,7 +72,7 @@ export const getLatestTracking = asyncHandler(
       success: true,
       data: latest,
     });
-  }
+  })
 );
 
 // ============================================
@@ -67,8 +83,11 @@ export const getLatestTracking = asyncHandler(
  * Add tracking update
  * POST /api/admin/tracking
  */
-export const addTrackingUpdate = asyncHandler(
-  async (req: Request, res: Response) => {
+router.post(
+  '/admin/tracking',
+  authenticate,
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
     const { orderId, status, location, description, metadata } = req.body;
 
     // Validate required fields
@@ -92,15 +111,18 @@ export const addTrackingUpdate = asyncHandler(
       message: 'Tracking update added successfully',
       data: tracking,
     });
-  }
+  })
 );
 
 /**
  * Get orders by status
  * GET /api/admin/tracking/status/:status
  */
-export const getOrdersByStatus = asyncHandler(
-  async (req: Request, res: Response) => {
+router.get(
+  '/admin/tracking/status/:status',
+  authenticate,
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
     const { status } = req.params;
 
     const orders = await orderTrackingService.getOrdersByStatus(status);
@@ -110,15 +132,18 @@ export const getOrdersByStatus = asyncHandler(
       count: orders.length,
       data: orders,
     });
-  }
+  })
 );
 
 /**
  * Bulk update order status
  * POST /api/admin/tracking/bulk-update
  */
-export const bulkUpdateOrderStatus = asyncHandler(
-  async (req: Request, res: Response) => {
+router.post(
+  '/admin/tracking/bulk-update',
+  authenticate,
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
     const { updates } = req.body;
 
     if (!updates || !Array.isArray(updates)) {
@@ -135,5 +160,7 @@ export const bulkUpdateOrderStatus = asyncHandler(
       message: `Bulk update completed. ${result.succeeded} succeeded, ${result.failed} failed.`,
       data: result,
     });
-  }
+  })
 );
+
+export default router;

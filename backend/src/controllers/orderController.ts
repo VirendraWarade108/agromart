@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import * as cartService from '../services/cartService';
 import * as orderService from '../services/orderService';
+import * as orderTrackingService from '../services/orderTrackingService';
 
 // ============================================
 // CART CONTROLLERS
@@ -54,12 +55,12 @@ export const addToCart = asyncHandler(async (req: Request, res: Response) => {
 
 /**
  * Update cart item quantity
- * PUT /api/cart/items/:productId
+ * PUT /api/cart/items/:id
  */
 export const updateCartItem = asyncHandler(
   async (req: Request, res: Response) => {
     const userId = req.userId!;
-    const { productId } = req.params;
+    const { id } = req.params; // Changed from productId to id (cart item ID)
     const { quantity } = req.body;
 
     if (quantity === undefined) {
@@ -69,7 +70,7 @@ export const updateCartItem = asyncHandler(
       });
     }
 
-    const cart = await cartService.updateCartItem(userId, productId, quantity);
+    const cart = await cartService.updateCartItem(userId, id, quantity);
 
     res.json({
       success: true,
@@ -84,14 +85,14 @@ export const updateCartItem = asyncHandler(
 
 /**
  * Remove item from cart
- * DELETE /api/cart/items/:productId
+ * DELETE /api/cart/items/:id
  */
 export const removeFromCart = asyncHandler(
   async (req: Request, res: Response) => {
     const userId = req.userId!;
-    const { productId } = req.params;
+    const { id } = req.params; // Changed from productId to id (cart item ID)
 
-    const cart = await cartService.removeFromCart(userId, productId);
+    const cart = await cartService.removeFromCart(userId, id);
 
     res.json({
       success: true,
@@ -170,6 +171,33 @@ export const removeCoupon = asyncHandler(async (req: Request, res: Response) => 
       items: result.cart.items,
       coupon: null,
       totals: result.totals,
+    },
+  });
+});
+
+/**
+ * Sync cart with server
+ * POST /api/cart/sync
+ */
+export const syncCart = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
+  const { items } = req.body;
+
+  if (!items || !Array.isArray(items)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Items array is required',
+    });
+  }
+
+  const cart = await cartService.syncCart(userId, items);
+
+  res.json({
+    success: true,
+    message: 'Cart synced successfully',
+    data: {
+      items: cart.items,
+      coupon: null,
     },
   });
 });
@@ -256,6 +284,42 @@ export const cancelOrder = asyncHandler(async (req: Request, res: Response) => {
     data: order,
   });
 });
+
+/**
+ * Get order tracking (alias for frontend compatibility)
+ * GET /api/orders/:id/track
+ */
+export const getOrderTracking = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.userId!;
+    const { id } = req.params;
+
+    const tracking = await orderTrackingService.getOrderTracking(id, userId);
+
+    res.json({
+      success: true,
+      data: tracking,
+    });
+  }
+);
+
+/**
+ * Get order invoice
+ * GET /api/orders/:id/invoice
+ */
+export const getOrderInvoice = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.userId!;
+    const { id } = req.params;
+
+    const invoice = await orderService.getOrderInvoice(id, userId);
+
+    res.json({
+      success: true,
+      data: invoice,
+    });
+  }
+);
 
 // ============================================
 // ADMIN ORDER CONTROLLERS

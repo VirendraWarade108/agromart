@@ -18,4 +18,7 @@ router.get('/profile', authenticate, authController.getProfile);
 router.put('/profile', authenticate, authController.updateProfile);
 router.post('/logout', authenticate, authController.logout);
 
+// Alias for frontend compatibility
+router.get('/me', authenticate, authController.getProfile);
+
 export default router;

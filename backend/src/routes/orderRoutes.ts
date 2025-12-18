@@ -9,9 +9,14 @@ const router = Router();
  */
 router.get('/cart', authenticate, orderController.getCart);
 router.post('/cart/add', authenticate, orderController.addToCart);
-router.put('/cart/items/:productId', authenticate, orderController.updateCartItem);
-router.delete('/cart/items/:productId', authenticate, orderController.removeFromCart);
+router.post('/cart/sync', authenticate, orderController.syncCart); // NEW
+router.put('/cart/items/:id', authenticate, orderController.updateCartItem);
+router.delete('/cart/items/:id', authenticate, orderController.removeFromCart);
 router.delete('/cart', authenticate, orderController.clearCart);
+
+// NEW: Cart coupon routes
+router.post('/cart/coupon', authenticate, orderController.applyCoupon);
+router.delete('/cart/coupon', authenticate, orderController.removeCoupon);
 
 /**
  * Checkout route (authentication required)
@@ -24,6 +29,12 @@ router.post('/checkout', authenticate, orderController.checkout);
 router.get('/orders', authenticate, orderController.getUserOrders);
 router.get('/orders/:id', authenticate, orderController.getOrderById);
 router.put('/orders/:id/cancel', authenticate, orderController.cancelOrder);
+
+// NEW: Order tracking alias for frontend compatibility
+router.get('/orders/:id/track', authenticate, orderController.getOrderTracking);
+
+// NEW: Order invoice endpoint
+router.get('/orders/:id/invoice', authenticate, orderController.getOrderInvoice);
 
 /**
  * Admin order routes (authentication + admin role required)

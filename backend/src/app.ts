@@ -12,11 +12,13 @@ import authRoutes from './routes/authRoutes';
 import productRoutes from './routes/productRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import orderRoutes from './routes/orderRoutes';
+import orderTrackingRoutes from './routes/orderTrackingRoutes';
 import addressRoutes from './routes/addressRoutes';
 import couponRoutes from './routes/couponRoutes';
 //import paymentRoutes from './routes/paymentRoutes';
 import adminProductRoutes from './routes/adminProductRoutes';
 import wishlistRoutes from './routes/Wishlistroutes';
+import reviewRoutes from './routes/reviewroutes';
 import path from 'path';
 import uploadRoutes from './routes/uploadRoutes';
 import adminUserRoutes from './routes/adminUserRoutes';
@@ -86,6 +88,8 @@ app.get('/api', (req: Request, res: Response) => {
       upload: '/api/upload',
       adminUsers: '/api/admin/users',
       support: '/api/support',
+      tracking: '/api/orders/:orderId/tracking',
+      reviews: '/api/reviews',
     },
   });
 });
@@ -103,8 +107,14 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 
+// Reviews (must be mounted before /api for /products/:productId/reviews to work)
+app.use('/api', reviewRoutes);
+
 // Cart / Checkout / Orders
 app.use('/api', orderRoutes);
+
+// Order Tracking (must be mounted before generic /orders routes to avoid conflicts)
+app.use('/api/orders', orderTrackingRoutes);
 
 // User
 app.use('/api/users/addresses', addressRoutes);

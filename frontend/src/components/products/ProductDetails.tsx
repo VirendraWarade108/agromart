@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Star, Heart, Share2, Truck, Shield, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { showErrorToast, showSuccessToast } from '@/store/uiStore';
+import { wishlistApi, handleApiError } from '@/lib/api';
+import useAuthStore from '@/store/authStore';
 
 interface Review {
   id: string;
@@ -52,7 +54,28 @@ export function ProductDetails({
   const [expandedSection, setExpandedSection] = useState<'specs' | 'reviews' | null>(null);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
   const { addToCart } = useCart();
+  const { isAuthenticated } = useAuthStore();
+
+  // Check if product is in wishlist on mount
+  useEffect(() => {
+    const checkWishlistStatus = async () => {
+      if (!isAuthenticated) return;
+      
+      try {
+        const response = await wishlistApi.check(product.id);
+        setIsInWishlist(response.data?.data?.inWishlist || false);
+      } catch (error) {
+        // Silently fail - not critical
+        console.error('Failed to check wishlist status:', error);
+      }
+    };
+
+    if (isOpen) {
+      checkWishlistStatus();
+    }
+  }, [product.id, isOpen, isAuthenticated]);
 
   if (!isOpen) return null;
 
@@ -89,13 +112,29 @@ export function ProductDetails({
     }
   };
 
-  const handleAddToWishlist = async () => {
+  const handleToggleWishlist = async () => {
+    // Check authentication
+    if (!isAuthenticated) {
+      showErrorToast('Login Required', 'Please login to add items to wishlist');
+      return;
+    }
+
     setIsAddingToWishlist(true);
     try {
-      // TODO: Connect to wishlist API
-      showSuccessToast('Added to wishlist');
+      if (isInWishlist) {
+        // Remove from wishlist
+        await wishlistApi.remove(product.id);
+        setIsInWishlist(false);
+        showSuccessToast('Removed from wishlist');
+      } else {
+        // Add to wishlist
+        await wishlistApi.add(product.id);
+        setIsInWishlist(true);
+        showSuccessToast('Added to wishlist');
+      }
     } catch (error) {
-      showErrorToast('Error', 'Failed to add to wishlist');
+      const errorMessage = handleApiError(error);
+      showErrorToast('Error', errorMessage);
     } finally {
       setIsAddingToWishlist(false);
     }
@@ -287,12 +326,23 @@ export function ProductDetails({
                       {isAddingToCart ? 'Adding...' : 'Add to Cart'}
                     </button>
                     <button
-                      onClick={handleAddToWishlist}
+                      onClick={handleToggleWishlist}
                       disabled={isAddingToWishlist}
-                      className="p-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
-                      aria-label="Add to wishlist"
+                      className={`p-3 border-2 rounded-xl transition-colors disabled:opacity-50 ${
+                        isInWishlist
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                      aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                      title={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
                     >
-                      <Heart className={`w-6 h-6 ${isAddingToWishlist ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+                      <Heart 
+                        className={`w-6 h-6 ${
+                          isInWishlist 
+                            ? 'fill-red-500 text-red-500' 
+                            : 'text-gray-600'
+                        }`} 
+                      />
                     </button>
                     <button
                       onClick={handleShare}

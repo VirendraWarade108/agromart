@@ -1,132 +1,174 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
-import * as adminUserService from '../services/adminUserService';
+import * as uploadService from '../services/uploadService';
 
 // ============================================
-// ADMIN USER MANAGEMENT
+// PRODUCT IMAGE UPLOADS (Admin only)
 // ============================================
 
 /**
- * Get all users
- * GET /api/admin/users
+ * Upload single product image
+ * POST /api/upload/product
  */
-export const getAllUsers = asyncHandler(
+export const uploadProductImage = asyncHandler(
   async (req: Request, res: Response) => {
-    const { isAdmin, search, page, limit } = req.query;
-
-    const result = await adminUserService.getAllUsers({
-      isAdmin: isAdmin === 'true' ? true : isAdmin === 'false' ? false : undefined,
-      search: search as string,
-      page: page ? parseInt(page as string) : undefined,
-      limit: limit ? parseInt(limit as string) : undefined,
-    });
-
-    res.json({
-      success: true,
-      data: result.users,
-      pagination: result.pagination,
-    });
-  }
-);
-
-/**
- * Get user by ID
- * GET /api/admin/users/:id
- */
-export const getUserById = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-
-    const user = await adminUserService.getUserById(id);
-
-    res.json({
-      success: true,
-      data: user,
-    });
-  }
-);
-
-/**
- * Create user
- * POST /api/admin/users
- */
-export const createUser = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { email, password, fullName, phone, isAdmin } = req.body;
-
-    // Validate required fields
-    if (!email || !password) {
+    if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required',
+        message: 'No file uploaded',
       });
     }
 
-    const user = await adminUserService.createUser({
-      email,
-      password,
-      fullName,
-      phone,
-      isAdmin,
-    });
+    const result = await uploadService.uploadSingleImage(req.file, 'products');
 
     res.status(201).json({
       success: true,
-      message: 'User created successfully',
-      data: user,
+      message: 'Image uploaded successfully',
+      data: result,
     });
   }
 );
 
 /**
- * Update user
- * PUT /api/admin/users/:id
+ * Upload multiple product images
+ * POST /api/upload/products
  */
-export const updateUser = asyncHandler(
+export const uploadProductImages = asyncHandler(
   async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const { email, password, fullName, phone, isAdmin } = req.body;
+    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No files uploaded',
+      });
+    }
 
-    const user = await adminUserService.updateUser(id, {
-      email,
-      password,
-      fullName,
-      phone,
-      isAdmin,
+    const result = await uploadService.uploadMultipleImages(req.files, 'products');
+
+    res.status(201).json({
+      success: true,
+      message: `${result.length} images uploaded successfully`,
+      data: result,
     });
+  }
+);
+
+// ============================================
+// REVIEW IMAGE UPLOADS (Authenticated users)
+// ============================================
+
+/**
+ * Upload single review image
+ * POST /api/upload/review
+ */
+export const uploadReviewImage = asyncHandler(
+  async (req: Request, res: Response) => {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded',
+      });
+    }
+
+    const result = await uploadService.uploadSingleImage(req.file, 'reviews');
+
+    res.status(201).json({
+      success: true,
+      message: 'Image uploaded successfully',
+      data: result,
+    });
+  }
+);
+
+/**
+ * Upload multiple review images
+ * POST /api/upload/reviews
+ */
+export const uploadReviewImages = asyncHandler(
+  async (req: Request, res: Response) => {
+    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No files uploaded',
+      });
+    }
+
+    const result = await uploadService.uploadMultipleImages(req.files, 'reviews');
+
+    res.status(201).json({
+      success: true,
+      message: `${result.length} images uploaded successfully`,
+      data: result,
+    });
+  }
+);
+
+// ============================================
+// PROFILE IMAGE UPLOAD (Authenticated users)
+// ============================================
+
+/**
+ * Upload profile image
+ * POST /api/upload/profile
+ */
+export const uploadProfileImage = asyncHandler(
+  async (req: Request, res: Response) => {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded',
+      });
+    }
+
+    const result = await uploadService.uploadSingleImage(req.file, 'profiles');
+
+    res.status(201).json({
+      success: true,
+      message: 'Profile image uploaded successfully',
+      data: result,
+    });
+  }
+);
+
+// ============================================
+// DELETE IMAGE
+// ============================================
+
+/**
+ * Delete image
+ * DELETE /api/upload/:type/:filename
+ */
+export const deleteImage = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { type, filename } = req.params;
+
+    // Validate type
+    if (!['products', 'reviews', 'profiles'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid image type',
+      });
+    }
+
+    await uploadService.deleteFile(filename, type as 'products' | 'reviews' | 'profiles');
 
     res.json({
       success: true,
-      message: 'User updated successfully',
-      data: user,
+      message: 'Image deleted successfully',
     });
   }
 );
 
-/**
- * Delete user
- * DELETE /api/admin/users/:id
- */
-export const deleteUser = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-
-    const result = await adminUserService.deleteUser(id);
-
-    res.json({
-      success: true,
-      message: result.message,
-    });
-  }
-);
+// ============================================
+// ADMIN ROUTES
+// ============================================
 
 /**
- * Get user statistics
- * GET /api/admin/users/stats
+ * Get upload statistics
+ * GET /api/admin/upload/stats
  */
-export const getUserStats = asyncHandler(
+export const getUploadStats = asyncHandler(
   async (req: Request, res: Response) => {
-    const stats = await adminUserService.getUserStats();
+    const stats = await uploadService.getUploadStats();
 
     res.json({
       success: true,
@@ -136,43 +178,19 @@ export const getUserStats = asyncHandler(
 );
 
 /**
- * Get user activity
- * GET /api/admin/users/:id/activity
+ * Clean up old files
+ * POST /api/admin/upload/cleanup
  */
-export const getUserActivity = asyncHandler(
+export const cleanupOldFiles = asyncHandler(
   async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const { daysOld = 30 } = req.body;
 
-    const activity = await adminUserService.getUserActivity(id);
+    const deletedCount = await uploadService.cleanupOldFiles(daysOld);
 
     res.json({
       success: true,
-      data: activity,
-    });
-  }
-);
-
-/**
- * Bulk update admin status
- * PUT /api/admin/users/bulk-admin
- */
-export const bulkUpdateAdminStatus = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { updates } = req.body;
-
-    if (!updates || !Array.isArray(updates)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Updates array is required',
-      });
-    }
-
-    const result = await adminUserService.bulkUpdateAdminStatus(updates);
-
-    res.json({
-      success: true,
-      message: `Bulk update completed. ${result.succeeded} succeeded, ${result.failed} failed.`,
-      data: result,
+      message: `Cleaned up ${deletedCount} old files`,
+      data: { deletedCount },
     });
   }
 );
