@@ -23,6 +23,9 @@ import path from 'path';
 import uploadRoutes from './routes/uploadRoutes';
 import adminUserRoutes from './routes/adminUserRoutes';
 import supportRoutes from './routes/supportRoutes';
+import userRoutes from './routes/userRoutes';           // ✅ ADDED
+import blogRoutes from './routes/blogRoutes';           // ✅ ADDED
+import adminAnalyticsRoutes from './routes/adminAnalyticsRoutes'; // ✅ ADDED
 
 /**
  * Create Express application
@@ -91,6 +94,9 @@ app.get('/api', (req: Request, res: Response) => {
       support: '/api/support',
       tracking: '/api/orders/:orderId/tracking',
       reviews: '/api/reviews',
+      users: '/api/users',              // ✅ ADDED
+      blog: '/api/blog',                // ✅ ADDED
+      adminAnalytics: '/api/admin/analytics', // ✅ ADDED
     },
   });
 });
@@ -124,10 +130,17 @@ app.use('/api/users/addresses', addressRoutes);
 app.use('/api/coupons', couponRoutes);
 
 // Payment
-//app.use('/api/payment', paymentRoutes);
+app.use('/api/payment', paymentRoutes); // ✅ UNCOMMENTED
+
+// User Profile & Settings
+app.use('/api/users', userRoutes); // ✅ ADDED
+
+// Blog
+app.use('/api/blog', blogRoutes); // ✅ ADDED
 
 // Admin
 app.use('/api/admin/products', adminProductRoutes);
+app.use('/api/admin/analytics', adminAnalyticsRoutes); // ✅ ADDED
 
 // ✅ WISHLIST - Mount at BOTH paths for compatibility
 app.use('/api/wishlist', wishlistRoutes);

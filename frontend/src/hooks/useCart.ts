@@ -333,7 +333,7 @@ export function useCart(): UseCartReturn {
     }
   }, [isAuthenticated, storeRemoveCoupon]);
 
-/**
+  /**
    * Sync local cart with server
    * Called when user logs in or on page load
    */
@@ -353,18 +353,19 @@ export function useCart(): UseCartReturn {
         storeClearCart();
         
         // Add server items to local cart
+        // Backend already transforms the response with: thumbnail, inStock, category string, price at item level
         serverItems.forEach((serverItem: any) => {
           storeAddItem({
             id: serverItem.id,
             productId: serverItem.productId,
             name: serverItem.product.name,
-            price: serverItem.product.price,                          // ✅ Fixed
-            image: serverItem.product.image,                          // ✅ Fixed
+            price: serverItem.price,                     // ✅ Backend provides price at item level
+            image: serverItem.product.thumbnail,         // ✅ Backend transforms image -> thumbnail
             quantity: serverItem.quantity,
-            inStock: (serverItem.product.stock || 0) > 0,            // ✅ Fixed
-            category: serverItem.product.category?.name || 'Uncategorized',  // ✅ Fixed
+            inStock: serverItem.product.inStock,         // ✅ Backend transforms stock -> inStock boolean
+            category: serverItem.product.category,       // ✅ Backend transforms category object -> string
           });
-       }); 
+        });
       }
     } catch (err) {
       console.error('Failed to sync cart with server:', err);
