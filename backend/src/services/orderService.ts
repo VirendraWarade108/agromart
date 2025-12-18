@@ -1,6 +1,7 @@
 import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 import { getCart, clearCart, calculateCartTotals } from './cartService';
+import * as couponService from './couponService';
 
 /**
  * ✅ FIXED: Calculate shipping fee
@@ -57,26 +58,44 @@ export const createOrder = async (
     0
   );
 
-  // ✅ FIXED: Apply coupon discount if provided
-  // TODO: Implement full coupon validation when coupon system is added
-  const couponDiscount = 0; // Placeholder for now
+  // ✅ FIXED: Apply coupon discount with full validation
+  let couponDiscount = 0;
+  let couponData: any = undefined;
+  let couponId: string | undefined = undefined;
+
+  if (data.couponCode) {
+    try {
+      // Validate coupon and calculate discount
+      const couponResult = await couponService.validateCoupon(
+        data.couponCode,
+        subtotal
+      );
+
+      // Extract discount and coupon details
+      couponDiscount = couponResult.discountAmount;
+      couponId = couponResult.coupon.id;
+
+      // Prepare coupon data for Order.coupon JSON field
+      couponData = {
+        code: couponResult.coupon.code,
+        type: couponResult.coupon.type,
+        value: couponResult.coupon.value,
+        discount: couponDiscount,
+      };
+    } catch (error: any) {
+      // Re-throw coupon validation errors to the user
+      throw new AppError(error.message || 'Invalid coupon', 400);
+    }
+  }
   
-  // ✅ FIXED: Calculate shipping based on subtotal
+  // ✅ FIXED: Calculate shipping based on subtotal (before discount)
   const shippingFee = calculateShipping(subtotal);
   
-  // ✅ FIXED: Calculate tax (18% GST on taxable amount)
+  // ✅ FIXED: Calculate tax (18% GST on taxable amount = subtotal - discount)
   const tax = calculateTax(subtotal, couponDiscount);
   
   // Calculate final total
   const total = subtotal - couponDiscount + shippingFee + tax;
-
-  // Prepare coupon data
-  const couponData = data.couponCode
-    ? {
-        code: data.couponCode,
-        discount: couponDiscount,
-      }
-    : undefined;
 
   // Create order
   const order = await prisma.order.create({
@@ -109,6 +128,11 @@ export const createOrder = async (
       },
     },
   });
+
+  // ✅ FIXED: Increment coupon usage count if coupon was applied
+  if (couponId) {
+    await couponService.applyCoupon(couponId);
+  }
 
   // Update product stock
   for (const item of cart.items) {
