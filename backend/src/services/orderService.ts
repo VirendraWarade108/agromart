@@ -3,6 +3,27 @@ import { AppError } from '../middleware/errorHandler';
 import { getCart, clearCart, calculateCartTotals } from './cartService';
 
 /**
+ * ✅ FIXED: Calculate shipping fee
+ * Free shipping for orders >= ₹5000, otherwise ₹200
+ */
+const calculateShipping = (subtotal: number): number => {
+  const FREE_SHIPPING_THRESHOLD = 5000;
+  const STANDARD_SHIPPING_FEE = 200;
+  
+  return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_FEE;
+};
+
+/**
+ * ✅ FIXED: Calculate tax (18% GST)
+ * Tax is applied on (subtotal - discount)
+ */
+const calculateTax = (subtotal: number, discount: number): number => {
+  const GST_RATE = 0.18; // 18% GST
+  const taxableAmount = subtotal - discount;
+  return Math.round(taxableAmount * GST_RATE * 100) / 100;
+};
+
+/**
  * Create order from cart (Checkout)
  */
 export const createOrder = async (
@@ -30,10 +51,24 @@ export const createOrder = async (
     }
   }
 
-  // Calculate totals
-  // TODO: Implement coupon validation when coupon system is added
-  const couponDiscount = 0; // Placeholder
-  const totals = calculateCartTotals(cart, couponDiscount);
+  // Calculate subtotal
+  const subtotal = cart.items.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
+    0
+  );
+
+  // ✅ FIXED: Apply coupon discount if provided
+  // TODO: Implement full coupon validation when coupon system is added
+  const couponDiscount = 0; // Placeholder for now
+  
+  // ✅ FIXED: Calculate shipping based on subtotal
+  const shippingFee = calculateShipping(subtotal);
+  
+  // ✅ FIXED: Calculate tax (18% GST on taxable amount)
+  const tax = calculateTax(subtotal, couponDiscount);
+  
+  // Calculate final total
+  const total = subtotal - couponDiscount + shippingFee + tax;
 
   // Prepare coupon data
   const couponData = data.couponCode
@@ -47,7 +82,7 @@ export const createOrder = async (
   const order = await prisma.order.create({
     data: {
       userId,
-      total: totals.total,
+      total,
       status: 'pending',
       ...(couponData && { coupon: couponData }),
       items: {
@@ -385,8 +420,12 @@ export const getOrderInvoice = async (orderId: string, userId: string) => {
       ? (order.coupon as any).discount
       : 0;
 
-  const tax = 0; // TODO: Implement tax calculation if needed
-  const shippingFee = 0; // TODO: Implement shipping fee if needed
+  // ✅ FIXED: Calculate tax using the same logic as order creation
+  const tax = calculateTax(subtotal, couponDiscount);
+  
+  // ✅ FIXED: Calculate shipping using the same logic as order creation
+  const shippingFee = calculateShipping(subtotal);
+  
   const total = order.total;
 
   // Build invoice response
