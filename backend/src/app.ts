@@ -26,7 +26,7 @@ import supportRoutes from './routes/supportRoutes';
 import userRoutes from './routes/userRoutes';           // ✅ ADDED
 import blogRoutes from './routes/blogRoutes';           // ✅ ADDED
 import adminAnalyticsRoutes from './routes/adminAnalyticsRoutes'; // ✅ ADDED
-
+import adminCategoryRoutes from './routes/adminCategoryRoutes';
 /**
  * Create Express application
  */
@@ -140,6 +140,7 @@ app.use('/api/blog', blogRoutes); // ✅ ADDED
 
 // Admin
 app.use('/api/admin/products', adminProductRoutes);
+app.use('/api/admin/categories', adminCategoryRoutes); 
 app.use('/api/admin/analytics', adminAnalyticsRoutes); // ✅ ADDED
 
 // ✅ WISHLIST - Mount at BOTH paths for compatibility
