@@ -15,7 +15,7 @@ import orderRoutes from './routes/orderRoutes';
 import orderTrackingRoutes from './routes/orderTrackingRoutes';
 import addressRoutes from './routes/addressRoutes';
 import couponRoutes from './routes/couponRoutes';
-//import paymentRoutes from './routes/paymentRoutes';
+import paymentRoutes from './routes/paymentRoutes';
 import adminProductRoutes from './routes/adminProductRoutes';
 import wishlistRoutes from './routes/Wishlistroutes';
 import reviewRoutes from './routes/reviewroutes';

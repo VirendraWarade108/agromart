@@ -191,6 +191,33 @@ export const productApi = {
 };
 
 // ============================================
+// WISHLIST ENDPOINTS
+// ============================================
+
+export const wishlistApi = {
+  get: () => 
+    apiClient.get('/users/wishlist'),
+  
+  add: (productId: string) => 
+    apiClient.post('/users/wishlist', { productId }),
+  
+  remove: (productId: string) => 
+    apiClient.delete(`/users/wishlist/${productId}`),
+  
+  check: (productId: string) => 
+    apiClient.get(`/users/wishlist/check/${productId}`),
+  
+  count: () => 
+    apiClient.get('/users/wishlist/count'),
+  
+  clear: () => 
+    apiClient.delete('/users/wishlist'),
+  
+  moveToCart: (productIds?: string[]) => 
+    apiClient.post('/users/wishlist/move-to-cart', { productIds }),
+};
+
+// ============================================
 // CART ENDPOINTS
 // ============================================
 
@@ -289,6 +316,7 @@ export const userApi = {
   setDefaultAddress: (id: string) => 
     apiClient.put(`/users/addresses/${id}/default`),
   
+  // ✅ DEPRECATED - Use wishlistApi instead
   getWishlist: () => 
     apiClient.get('/users/wishlist'),
   
