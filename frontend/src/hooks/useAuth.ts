@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useAuthStore, { User } from '@/store/authStore';
-import { authApi, handleApiError } from '@/lib/api';
+import { authApi, userApi, handleApiError } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/store/uiStore';
 
 interface LoginCredentials {
@@ -339,6 +339,7 @@ export function useAuth(): UseAuthReturn {
 
   /**
    * Change password
+   * ✅ FIXED: Now uses real userApi.changePassword endpoint
    */
   const changePassword = useCallback(async (
     currentPassword: string,
@@ -348,12 +349,7 @@ export function useAuth(): UseAuthReturn {
     setError(null);
 
     try {
-      // Note: This would need to be implemented in the API
-      // For now, using updateProfile as placeholder
-      const response = await authApi.updateProfile({
-        currentPassword,
-        newPassword,
-      } as any);
+      const response = await userApi.changePassword(currentPassword, newPassword);
       
       if (response.data.success) {
         showSuccessToast('Password changed successfully');

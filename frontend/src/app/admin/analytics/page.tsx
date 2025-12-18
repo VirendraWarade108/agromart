@@ -58,43 +58,7 @@ function AnalyticsContent() {
     } catch (error) {
       const message = handleApiError(error);
       showErrorToast(message, 'Failed to load analytics');
-      
-      // Only show mock data in development
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Using mock data for development');
-        // Simulate loading delay
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        setData({
-          revenue: {
-            today: 24500,
-            week: 156800,
-            month: 625400,
-            year: 7891250,
-          },
-          orders: {
-            total: 3456,
-            pending: 145,
-            completed: 3200,
-            cancelled: 111,
-          },
-          customers: {
-            total: 8920,
-            new: 234,
-            active: 5620,
-          },
-          products: {
-            total: 1234,
-            inStock: 1100,
-            lowStock: 134,
-          },
-          topProducts: [
-            { name: 'Premium Seeds Pack', sales: 456, revenue: 1134720 },
-            { name: 'Organic Fertilizer', sales: 389, revenue: 738711 },
-            { name: 'Farm Tools Set', sales: 267, revenue: 534333 },
-          ],
-        });
-      }
-    } finally {
+     } finally {
       setIsLoading(false);
     }
   };

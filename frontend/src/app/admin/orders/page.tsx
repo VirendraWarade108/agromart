@@ -65,57 +65,7 @@ export default function AdminOrdersPage() {
     } catch (error) {
       const message = handleApiError(error);
       showErrorToast(message, 'Failed to load orders');
-      
-      // Only show mock data in development
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Using mock data for development');
-        setOrders([
-          {
-            id: '1',
-            orderNumber: 'ORD-2024-001',
-            userId: 'user1',
-            customerName: 'Rajesh Kumar',
-            customerEmail: 'rajesh@example.com',
-            items: [{ name: 'Premium Seeds', quantity: 2, price: 2499 }],
-            total: 4998,
-            status: 'processing',
-            paymentMethod: 'card',
-            paymentStatus: 'completed',
-            shippingAddress: { city: 'Delhi' },
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '2',
-            orderNumber: 'ORD-2024-002',
-            userId: 'user2',
-            customerName: 'Priya Sharma',
-            customerEmail: 'priya@example.com',
-            items: [{ name: 'Fertilizer Pro', quantity: 1, price: 1899 }],
-            total: 1899,
-            status: 'shipped',
-            paymentMethod: 'upi',
-            paymentStatus: 'completed',
-            shippingAddress: { city: 'Mumbai' },
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-          },
-          {
-            id: '3',
-            orderNumber: 'ORD-2024-003',
-            userId: 'user3',
-            customerName: 'Anil Patel',
-            customerEmail: 'anil@example.com',
-            items: [{ name: 'Irrigation Kit', quantity: 1, price: 8999 }],
-            total: 8999,
-            status: 'delivered',
-            paymentMethod: 'cod',
-            paymentStatus: 'completed',
-            shippingAddress: { city: 'Bangalore' },
-            createdAt: new Date(Date.now() - 172800000).toISOString(),
-            deliveredAt: new Date(Date.now() - 86400000).toISOString(),
-          },
-        ]);
-      }
-    } finally {
+     } finally {
       setIsLoading(false);
     }
   };

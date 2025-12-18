@@ -51,25 +51,7 @@ function OrdersPageContent() {
     } catch (error) {
       const message = handleApiError(error);
       showErrorToast(message, 'Failed to load orders');
-      
-      // Only show mock data in development
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Using mock data for development');
-        setOrders([
-          {
-            id: '1',
-            orderNumber: 'ORD-2024-001',
-            items: [{ name: 'Premium Seeds', quantity: 2, price: 2499 }],
-            total: 4998,
-            status: 'delivered',
-            paymentMethod: 'card',
-            paymentStatus: 'completed',
-            shippingAddress: { city: 'Delhi' },
-            createdAt: new Date(Date.now() - 172800000).toISOString(),
-            deliveredAt: new Date(Date.now() - 86400000).toISOString(),
-          },
-        ]);
-      }
+    // Only show mock data in development
     } finally {
       setIsLoading(false);
     }
