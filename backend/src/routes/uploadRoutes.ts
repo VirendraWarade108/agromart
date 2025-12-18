@@ -6,6 +6,35 @@ import { upload } from '../services/uploadService';
 const router = Router();
 
 // ============================================
+// GENERIC IMAGE UPLOADS (Frontend compatibility)
+// Routes must come BEFORE specific routes to avoid conflicts
+// ============================================
+
+/**
+ * Upload single image (generic endpoint for frontend)
+ * POST /api/upload/image
+ * Accepts optional 'folder' in FormData to specify destination
+ */
+router.post(
+  '/image',
+  authenticate, // Require auth, but not admin
+  upload.single('image'),
+  uploadController.uploadImage
+);
+
+/**
+ * Upload multiple images (generic endpoint for frontend)
+ * POST /api/upload/multiple
+ * Accepts optional 'folder' in FormData to specify destination
+ */
+router.post(
+  '/multiple',
+  authenticate, // Require auth, but not admin
+  upload.array('images', 10), // Max 10 images
+  uploadController.uploadMultipleImages
+);
+
+// ============================================
 // PRODUCT IMAGE UPLOADS (Admin only)
 // ============================================
 

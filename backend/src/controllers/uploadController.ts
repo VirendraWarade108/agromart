@@ -3,6 +3,82 @@ import { asyncHandler } from '../middleware/errorHandler';
 import * as uploadService from '../services/uploadService';
 
 // ============================================
+// GENERIC IMAGE UPLOADS (Frontend compatibility)
+// ============================================
+
+/**
+ * Upload single image (generic endpoint)
+ * POST /api/upload/image
+ * Supports folder parameter to specify destination
+ */
+export const uploadImage = asyncHandler(
+  async (req: Request, res: Response) => {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded',
+      });
+    }
+
+    // Allow folder to be specified via body or default to 'products'
+    const folder = req.body.folder || 'products';
+    
+    // Validate folder
+    const validFolders = ['products', 'reviews', 'profiles'];
+    if (!validFolders.includes(folder)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid folder. Must be one of: ${validFolders.join(', ')}`,
+      });
+    }
+
+    const result = await uploadService.uploadSingleImage(req.file, folder);
+
+    res.status(201).json({
+      success: true,
+      message: 'Image uploaded successfully',
+      data: result,
+    });
+  }
+);
+
+/**
+ * Upload multiple images (generic endpoint)
+ * POST /api/upload/multiple
+ * Supports folder parameter to specify destination
+ */
+export const uploadMultipleImages = asyncHandler(
+  async (req: Request, res: Response) => {
+    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No files uploaded',
+      });
+    }
+
+    // Allow folder to be specified via body or default to 'products'
+    const folder = req.body.folder || 'products';
+    
+    // Validate folder
+    const validFolders = ['products', 'reviews', 'profiles'];
+    if (!validFolders.includes(folder)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid folder. Must be one of: ${validFolders.join(', ')}`,
+      });
+    }
+
+    const result = await uploadService.uploadMultipleImages(req.files, folder);
+
+    res.status(201).json({
+      success: true,
+      message: `${result.length} images uploaded successfully`,
+      data: result,
+    });
+  }
+);
+
+// ============================================
 // PRODUCT IMAGE UPLOADS (Admin only)
 // ============================================
 
