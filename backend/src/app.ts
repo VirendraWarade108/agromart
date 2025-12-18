@@ -85,6 +85,7 @@ app.get('/api', (req: Request, res: Response) => {
       payment: '/api/payment',
       adminProducts: '/api/admin/products',
       wishlist: '/api/wishlist',
+      wishlistAlt: '/api/users/wishlist', // ✅ ADDED
       upload: '/api/upload',
       adminUsers: '/api/admin/users',
       support: '/api/support',
@@ -128,8 +129,9 @@ app.use('/api/coupons', couponRoutes);
 // Admin
 app.use('/api/admin/products', adminProductRoutes);
 
-//whishlist
+// ✅ WISHLIST - Mount at BOTH paths for compatibility
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/users/wishlist', wishlistRoutes); // ✅ ADDED for frontend compatibility
 
 /**
  * 404 handler

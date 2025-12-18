@@ -15,6 +15,12 @@ const router = Router();
 router.post('/contact', supportController.submitContactMessage);
 
 /**
+ * Subscribe to newsletter (alias for frontend compatibility)
+ * POST /api/support/newsletter
+ */
+router.post('/newsletter', supportController.subscribeToNewsletter);
+
+/**
  * Subscribe to newsletter
  * POST /api/support/newsletter/subscribe
  */
