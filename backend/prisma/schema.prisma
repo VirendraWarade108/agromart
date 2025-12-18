@@ -302,3 +302,33 @@ model FAQ {
   @@index([isActive])
   @@index([order])
 }
+
+// ============================================
+// BLOG POST MODEL
+// ============================================
+model BlogPost {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String   @unique
+  excerpt       String
+  content       String   @db.Text
+  author        String
+  featuredImage String?
+  category      String
+  tags          String[]
+  likes         Int      @default(0)
+  comments      Int      @default(0)
+  views         Int      @default(0)
+  readingTime   Int      @default(5)
+  featured      Boolean  @default(false)
+  published     Boolean  @default(true)
+  publishedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([slug])
+  @@index([category])
+  @@index([featured])
+  @@index([published])
+  @@index([publishedAt])
+}

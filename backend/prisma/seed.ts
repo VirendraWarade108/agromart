@@ -13,6 +13,7 @@ async function main() {
   await prisma.product.deleteMany();
   await prisma.category.deleteMany();
   await prisma.address.deleteMany();
+  await prisma.blogPost.deleteMany(); // ✅ ADDED (Claude instruction)
   await prisma.user.deleteMany();
   await prisma.vendor.deleteMany();
 
@@ -58,7 +59,7 @@ async function main() {
       businessName: 'AgroMart Supplies',
       email: 'vendor@agromart.com',
       phone: '+91-9876543210',
-      password: '$2a$10$YourHashedPasswordHere', // Not used for seed
+      password: '$2a$10$YourHashedPasswordHere',
       city: 'Mumbai',
       state: 'Maharashtra',
       country: 'India',
@@ -187,7 +188,7 @@ async function main() {
     data: {
       fullName: 'Admin User',
       email: 'admin@agromart.com',
-      password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
+      password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
       isAdmin: true,
     },
   });
@@ -199,12 +200,58 @@ async function main() {
     data: {
       fullName: 'Test User',
       email: 'test@example.com',
-      password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
+      password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
       phone: '+91-9876543210',
     },
   });
 
   console.log('✅ Created test user');
+
+  // ✅ ADDED: Create Blog Posts (Claude instruction)
+  const blogPosts = [
+    {
+      title: 'Complete Guide to Organic Farming in 2025',
+      slug: 'organic-farming-guide-2025',
+      excerpt:
+        'Learn everything you need to know about sustainable organic farming practices in the modern era.',
+      content: `
+        <h2>Introduction to Organic Farming</h2>
+        <p>Organic farming is a method of crop and livestock production...</p>
+      `,
+      author: 'Dr. Rajesh Kumar',
+      featuredImage: '/images/blog/organic-farming.jpg',
+      category: 'Farming Tips',
+      tags: ['organic', 'sustainable', 'farming'],
+      readingTime: 8,
+      featured: true,
+      likes: 245,
+      views: 1280,
+    },
+    {
+      title: 'Top 10 Seeds for Monsoon Season',
+      slug: 'top-10-seeds-monsoon-season',
+      excerpt:
+        'Discover the best seeds to plant during the monsoon season for maximum yield.',
+      content: `
+        <h2>Best Seeds for Monsoon</h2>
+        <p>The monsoon season provides ideal conditions...</p>
+      `,
+      author: 'Priya Sharma',
+      featuredImage: '/images/blog/monsoon-seeds.jpg',
+      category: 'Seeds & Plants',
+      tags: ['seeds', 'monsoon', 'planting'],
+      readingTime: 6,
+      featured: true,
+      likes: 189,
+      views: 980,
+    },
+  ];
+
+  for (const post of blogPosts) {
+    await prisma.blogPost.create({ data: post });
+  }
+
+  console.log('✅ Created blog posts');
 
   console.log('🎉 Seeding completed successfully!');
   console.log('\nTest Accounts:');

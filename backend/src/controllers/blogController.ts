@@ -1,130 +1,6 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
-import { AppError } from '../middleware/errorHandler';
-
-/**
- * BLOG CONTROLLER
- * 
- * NOTE: This is a simple in-memory implementation for demonstration.
- * In production, you would store blog posts in a database (Prisma BlogPost model).
- * 
- * For now, we're using mock data to match the frontend expectations.
- */
-
-// Mock blog posts data
-const mockBlogPosts = [
-  {
-    id: '1',
-    title: 'Complete Guide to Organic Farming in 2025',
-    slug: 'organic-farming-guide-2025',
-    excerpt: 'Learn everything you need to know about sustainable organic farming practices in the modern era.',
-    content: `
-      <h2>Introduction to Organic Farming</h2>
-      <p>Organic farming is a method of crop and livestock production that involves much more than choosing not to use pesticides, fertilizers, genetically modified organisms, antibiotics and growth hormones.</p>
-      
-      <h2>Benefits of Organic Farming</h2>
-      <ul>
-        <li>Healthier soil and plants</li>
-        <li>Better for the environment</li>
-        <li>Higher quality produce</li>
-        <li>Sustainable long-term practices</li>
-      </ul>
-      
-      <h2>Getting Started</h2>
-      <p>Starting an organic farm requires careful planning, dedication, and knowledge of sustainable farming practices. Here are the key steps...</p>
-      
-      <h2>Best Practices</h2>
-      <p>Implementing crop rotation, composting, and natural pest control are essential elements of successful organic farming.</p>
-    `,
-    author: 'Dr. Rajesh Kumar',
-    featured_image: '/images/blog/organic-farming.jpg',
-    category: 'Farming Tips',
-    tags: ['organic', 'sustainable', 'farming'],
-    likes: 245,
-    comments: 32,
-    views: 1280,
-    published_at: '2025-01-15T10:00:00Z',
-    reading_time: 8,
-    featured: true,
-  },
-  {
-    id: '2',
-    title: 'Top 10 Seeds for Monsoon Season',
-    slug: 'top-10-seeds-monsoon-season',
-    excerpt: 'Discover the best seeds to plant during the monsoon season for maximum yield.',
-    content: `
-      <h2>Best Seeds for Monsoon</h2>
-      <p>The monsoon season provides ideal conditions for many crops. Here are the top 10 seeds you should consider planting...</p>
-      
-      <ol>
-        <li>Rice - The staple crop</li>
-        <li>Maize - Quick growing</li>
-        <li>Cotton - High demand</li>
-        <li>Soybean - Protein rich</li>
-        <li>Groundnut - Profitable crop</li>
-      </ol>
-    `,
-    author: 'Priya Sharma',
-    featured_image: '/images/blog/monsoon-seeds.jpg',
-    category: 'Seeds & Plants',
-    tags: ['seeds', 'monsoon', 'planting'],
-    likes: 189,
-    comments: 24,
-    views: 980,
-    published_at: '2025-01-10T14:30:00Z',
-    reading_time: 6,
-    featured: true,
-  },
-  {
-    id: '3',
-    title: 'Understanding Soil Health and Fertility',
-    slug: 'understanding-soil-health-fertility',
-    excerpt: 'A comprehensive guide to maintaining and improving soil health for better crop yields.',
-    content: `
-      <h2>What is Soil Health?</h2>
-      <p>Soil health is the continued capacity of soil to function as a vital living ecosystem that sustains plants, animals, and humans.</p>
-      
-      <h2>Indicators of Healthy Soil</h2>
-      <p>Good soil structure, adequate nutrients, proper pH levels, and beneficial microorganisms are key indicators.</p>
-    `,
-    author: 'Dr. Anil Patel',
-    featured_image: '/images/blog/soil-health.jpg',
-    category: 'Soil & Fertilizers',
-    tags: ['soil', 'fertility', 'health'],
-    likes: 156,
-    comments: 18,
-    views: 750,
-    published_at: '2025-01-05T09:15:00Z',
-    reading_time: 10,
-    featured: false,
-  },
-  {
-    id: '4',
-    title: 'Modern Irrigation Techniques for Small Farms',
-    slug: 'modern-irrigation-techniques-small-farms',
-    excerpt: 'Explore efficient and cost-effective irrigation methods suitable for small-scale farmers.',
-    content: `
-      <h2>Why Modern Irrigation Matters</h2>
-      <p>Water conservation and efficient irrigation are crucial for sustainable farming.</p>
-      
-      <h2>Drip Irrigation</h2>
-      <p>One of the most efficient methods, delivering water directly to plant roots.</p>
-      
-      <h2>Sprinkler Systems</h2>
-      <p>Suitable for various crop types and terrain conditions.</p>
-    `,
-    author: 'Vikram Singh',
-    featured_image: '/images/blog/irrigation.jpg',
-    category: 'Farming Tips',
-    tags: ['irrigation', 'water', 'efficiency'],
-    likes: 203,
-    comments: 27,
-    views: 1150,
-    published_at: '2025-01-12T16:45:00Z',
-    reading_time: 7,
-    featured: true,
-  },
-];
+import * as blogService from '../services/blogService';
 
 /**
  * Get all blog posts
@@ -134,29 +10,16 @@ export const getAllPosts = asyncHandler(
   async (req: Request, res: Response) => {
     const { page = 1, limit = 10, category } = req.query;
     
-    let filteredPosts = [...mockBlogPosts];
-    
-    // Filter by category if provided
-    if (category) {
-      filteredPosts = filteredPosts.filter(
-        (post) => post.category.toLowerCase() === (category as string).toLowerCase()
-      );
-    }
-    
-    // Simple pagination
-    const startIndex = (Number(page) - 1) * Number(limit);
-    const endIndex = startIndex + Number(limit);
-    const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
+    const result = await blogService.getAllPosts({
+      page: Number(page),
+      limit: Number(limit),
+      category: category as string,
+    });
     
     res.json({
       success: true,
-      data: paginatedPosts,
-      pagination: {
-        total: filteredPosts.length,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(filteredPosts.length / Number(limit)),
-      },
+      data: result.posts,
+      pagination: result.pagination,
     });
   }
 );
@@ -169,14 +32,7 @@ export const getPostById = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
     
-    const post = mockBlogPosts.find((p) => p.id === id);
-    
-    if (!post) {
-      throw new AppError('Blog post not found', 404);
-    }
-    
-    // Increment views (in real app, update in database)
-    post.views += 1;
+    const post = await blogService.getPostById(id);
     
     res.json({
       success: true,
@@ -193,14 +49,7 @@ export const getPostBySlug = asyncHandler(
   async (req: Request, res: Response) => {
     const { slug } = req.params;
     
-    const post = mockBlogPosts.find((p) => p.slug === slug);
-    
-    if (!post) {
-      throw new AppError('Blog post not found', 404);
-    }
-    
-    // Increment views
-    post.views += 1;
+    const post = await blogService.getPostBySlug(slug);
     
     res.json({
       success: true,
@@ -215,13 +64,7 @@ export const getPostBySlug = asyncHandler(
  */
 export const getCategories = asyncHandler(
   async (req: Request, res: Response) => {
-    // Extract unique categories
-    const categories = Array.from(
-      new Set(mockBlogPosts.map((post) => post.category))
-    ).map((category) => {
-      const count = mockBlogPosts.filter((p) => p.category === category).length;
-      return { name: category, count };
-    });
+    const categories = await blogService.getCategories();
     
     res.json({
       success: true,
@@ -236,13 +79,11 @@ export const getCategories = asyncHandler(
  */
 export const getFeaturedPosts = asyncHandler(
   async (req: Request, res: Response) => {
-    const featuredPosts = mockBlogPosts
-      .filter((post) => post.featured)
-      .slice(0, 4);
+    const posts = await blogService.getFeaturedPosts();
     
     res.json({
       success: true,
-      data: featuredPosts,
+      data: posts,
     });
   }
 );
@@ -262,15 +103,7 @@ export const searchPosts = asyncHandler(
       });
     }
     
-    const query = q.toLowerCase();
-    
-    const results = mockBlogPosts.filter(
-      (post) =>
-        post.title.toLowerCase().includes(query) ||
-        post.excerpt.toLowerCase().includes(query) ||
-        post.tags.some((tag) => tag.toLowerCase().includes(query)) ||
-        post.category.toLowerCase().includes(query)
-    );
+    const results = await blogService.searchPosts(q);
     
     res.json({
       success: true,
