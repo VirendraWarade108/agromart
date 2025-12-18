@@ -123,6 +123,72 @@ http://localhost:3000
 ```
 
 ---
+---
+
+## 🔧 Backend Setup
+
+### Prerequisites
+- Node.js 18+
+- PostgreSQL database
+- npm or yarn or pnpm
+
+### Setup Steps
+
+1. **Navigate to backend directory**
+```bash
+cd agromart/backend
+```
+
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Create environment file**
+```bash
+cp .env.example .env
+```
+
+4. **Configure environment variables**
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/agromart"
+JWT_SECRET="your-secret-key-here"
+PORT=5000
+```
+
+5. **Setup database**
+```bash
+# Generate Prisma Client
+npm run prisma:generate
+
+# Run migrations
+npm run prisma:migrate
+
+# (Optional) Seed database
+npm run prisma:seed
+```
+
+6. **Run development server**
+```bash
+npm run dev
+```
+
+The backend will start at `http://localhost:5000/api`
+
+### Production Deployment
+```bash
+# Build TypeScript
+npm run build
+
+# Start production server
+npm start
+```
+
+**Note:** The legacy `server.js` file has been removed. Always use:
+- **Development:** `npm run dev` (runs `src/server.ts` with hot-reload)
+- **Production:** `npm run build && npm start` (compiles to `dist/server.js`)
+
+---
 
 ## 🏗️ Project Structure
 
