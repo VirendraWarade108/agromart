@@ -31,7 +31,6 @@ export const getAllPosts = asyncHandler(
 export const getPostById = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
-    
     const post = await blogService.getPostById(id);
     
     res.json({
@@ -48,7 +47,6 @@ export const getPostById = asyncHandler(
 export const getPostBySlug = asyncHandler(
   async (req: Request, res: Response) => {
     const { slug } = req.params;
-    
     const post = await blogService.getPostBySlug(slug);
     
     res.json({

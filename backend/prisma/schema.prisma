@@ -150,6 +150,7 @@ model Order {
   coupon    Json?
   items     OrderItem[]
   tracking      OrderTracking[]
+  paymentIntents PaymentIntent[]
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -331,4 +332,24 @@ model BlogPost {
   @@index([featured])
   @@index([published])
   @@index([publishedAt])
+}
+
+// ============================================
+// PAYMENT INTENT MODEL
+// ============================================
+model PaymentIntent {
+  id        String   @id @default(cuid())
+  paymentId String   @unique // External payment ID (pi_xxxxx)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  amount    Float
+  status    String   @default("pending") // pending, processing, succeeded, failed, refunded
+  clientSecret String?
+  metadata  Json?    // Store additional payment data
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([paymentId])
+  @@index([status])
 }

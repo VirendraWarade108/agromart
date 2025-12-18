@@ -2,21 +2,9 @@ import prisma from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 
 /**
- * Payment Service - Mock Implementation
- * This is a simplified payment service that simulates payment processing
- * without integrating with real payment gateways
+ * Payment Service - DB-backed Implementation
+ * Simulates payment processing with database persistence
  */
-
-interface PaymentIntent {
-  id: string;
-  amount: number;
-  orderId: string;
-  status: 'pending' | 'processing' | 'succeeded' | 'failed';
-  createdAt: Date;
-}
-
-// In-memory store for payment intents (in production, use database)
-const paymentIntents = new Map<string, PaymentIntent>();
 
 /**
  * Create payment intent
@@ -42,18 +30,18 @@ export const createPaymentIntent = async (amount: number, orderId: string) => {
 
   // Generate mock payment intent ID
   const paymentId = `pi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const clientSecret = `${paymentId}_secret_${Math.random().toString(36).substr(2, 9)}`;
 
-  // Create payment intent
-  const intent: PaymentIntent = {
-    id: paymentId,
-    amount,
-    orderId,
-    status: 'pending',
-    createdAt: new Date(),
-  };
-
-  // Store in memory
-  paymentIntents.set(paymentId, intent);
+  // Create payment intent in database
+  const intent = await prisma.paymentIntent.create({
+    data: {
+      paymentId,
+      orderId,
+      amount,
+      status: 'pending',
+      clientSecret,
+    },
+  });
 
   // Update order status to processing
   await prisma.order.update({
@@ -62,8 +50,8 @@ export const createPaymentIntent = async (amount: number, orderId: string) => {
   });
 
   return {
-    paymentId,
-    clientSecret: `${paymentId}_secret_${Math.random().toString(36).substr(2, 9)}`,
+    paymentId: intent.paymentId,
+    clientSecret: intent.clientSecret,
     status: intent.status,
     amount: intent.amount,
   };
@@ -74,8 +62,10 @@ export const createPaymentIntent = async (amount: number, orderId: string) => {
  * Simulates payment verification after user completes payment
  */
 export const verifyPayment = async (paymentId: string, orderId: string) => {
-  // Get payment intent
-  const intent = paymentIntents.get(paymentId);
+  // Get payment intent from database
+  const intent = await prisma.paymentIntent.findUnique({
+    where: { paymentId },
+  });
 
   if (!intent) {
     throw new AppError('Payment intent not found', 404);
@@ -101,8 +91,10 @@ export const verifyPayment = async (paymentId: string, orderId: string) => {
 
   if (isSuccess) {
     // Update payment intent status
-    intent.status = 'succeeded';
-    paymentIntents.set(paymentId, intent);
+    await prisma.paymentIntent.update({
+      where: { paymentId },
+      data: { status: 'succeeded' },
+    });
 
     // Update order status to paid
     await prisma.order.update({
@@ -118,8 +110,10 @@ export const verifyPayment = async (paymentId: string, orderId: string) => {
     };
   } else {
     // Payment failed
-    intent.status = 'failed';
-    paymentIntents.set(paymentId, intent);
+    await prisma.paymentIntent.update({
+      where: { paymentId },
+      data: { status: 'failed' },
+    });
 
     // Update order status to failed
     await prisma.order.update({
@@ -152,13 +146,10 @@ export const getPaymentStatus = async (orderId: string) => {
   }
 
   // Find payment intent for this order
-  let paymentIntent: PaymentIntent | undefined;
-  for (const [, intent] of paymentIntents.entries()) {
-    if (intent.orderId === orderId) {
-      paymentIntent = intent;
-      break;
-    }
-  }
+  const paymentIntent = await prisma.paymentIntent.findFirst({
+    where: { orderId },
+    orderBy: { createdAt: 'desc' }, // Get most recent
+  });
 
   if (!paymentIntent) {
     return {
@@ -172,7 +163,7 @@ export const getPaymentStatus = async (orderId: string) => {
   return {
     orderId,
     orderStatus: order.status,
-    paymentId: paymentIntent.id,
+    paymentId: paymentIntent.paymentId,
     paymentStatus: paymentIntent.status,
     amount: paymentIntent.amount,
     createdAt: paymentIntent.createdAt,
@@ -206,6 +197,12 @@ export const processRefund = async (orderId: string, amount?: number) => {
   // Update order status
   await prisma.order.update({
     where: { id: orderId },
+    data: { status: 'refunded' },
+  });
+
+  // Update payment intent status
+  await prisma.paymentIntent.updateMany({
+    where: { orderId },
     data: { status: 'refunded' },
   });
 
