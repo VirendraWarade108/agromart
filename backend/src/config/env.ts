@@ -40,11 +40,20 @@ export const env = {
   // Database
   DATABASE_URL: process.env.DATABASE_URL!,
 
+  // Redis
+  REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
+
   // JWT
   JWT_SECRET: process.env.JWT_SECRET!,
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET!,
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+
+  // Payment
+  PAYMENT_STRIPE_WEBHOOK_SECRET: process.env.PAYMENT_STRIPE_WEBHOOK_SECRET || '',
+
+  // Cookies
+  COOKIE_SECRET: process.env.COOKIE_SECRET || 'default-cookie-secret-change-in-production',
 
   // Email (optional - for future use)
   SMTP_HOST: process.env.SMTP_HOST,

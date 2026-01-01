@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@prisma/config": "^7.1.0",
+    "redis": "^5.10.0",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^4.3.4"
   },

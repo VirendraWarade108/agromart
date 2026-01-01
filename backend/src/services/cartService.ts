@@ -69,15 +69,182 @@ export const getCart = async (userId: string) => {
       ...item,
       product: {
         ...item.product,
-        thumbnail: item.product.image, // Frontend expects 'thumbnail'
-        inStock: (item.product.stock || 0) > 0, // Frontend expects 'inStock' boolean
-        category: item.product.category?.name || 'Uncategorized', // Frontend expects category string
+        thumbnail: item.product.image,
+        inStock: (item.product.stock || 0) > 0,
+        category: item.product.category?.name || 'Uncategorized',
       },
-      price: item.product.price, // Add price at item level for frontend
+      price: item.product.price,
     })),
   };
 
   return transformedCart;
+};
+
+/**
+ * Get guest cart by cartId
+ */
+export const getGuestCart = async (guestCartId: string) => {
+  const cart = await prisma.cart.findUnique({
+    where: { id: guestCartId },
+    include: {
+      items: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              price: true,
+              originalPrice: true,
+              image: true,
+              stock: true,
+              category: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!cart) {
+    throw new AppError('Guest cart not found', 404);
+  }
+
+  // Transform response
+  const transformedCart = {
+    ...cart,
+    items: cart.items.map((item) => ({
+      ...item,
+      product: {
+        ...item.product,
+        thumbnail: item.product.image,
+        inStock: (item.product.stock || 0) > 0,
+        category: item.product.category?.name || 'Uncategorized',
+      },
+      price: item.product.price,
+    })),
+  };
+
+  return transformedCart;
+};
+
+/**
+ * Create guest cart
+ */
+export const createGuestCart = async () => {
+  const cart = await prisma.cart.create({
+    data: {
+      userId: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    },
+    include: {
+      items: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              price: true,
+              originalPrice: true,
+              image: true,
+              stock: true,
+              category: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return cart;
+};
+
+/**
+ * Merge guest cart into user cart on login
+ */
+export const mergeGuestCart = async (userId: string, guestCartId: string) => {
+  // Get both carts
+  const [userCart, guestCart] = await Promise.all([
+    prisma.cart.findUnique({
+      where: { userId },
+      include: { items: true },
+    }),
+    prisma.cart.findUnique({
+      where: { id: guestCartId },
+      include: { items: true },
+    }),
+  ]);
+
+  if (!guestCart || !guestCart.items.length) {
+    // No guest cart or empty, nothing to merge
+    return userCart || (await prisma.cart.create({ data: { userId } }));
+  }
+
+  // Ensure user has a cart
+  let targetCart = userCart;
+  if (!targetCart) {
+    targetCart = await prisma.cart.create({
+      data: { userId },
+    });
+  }
+
+  // Merge items from guest cart
+  for (const guestItem of guestCart.items) {
+    // Check if product exists in user cart
+    const existingItem = await prisma.cartItem.findUnique({
+      where: {
+        cartId_productId: {
+          cartId: targetCart.id,
+          productId: guestItem.productId,
+        },
+      },
+      include: { product: true },
+    });
+
+    if (existingItem) {
+      // Product already exists, add quantities
+      const newQuantity = existingItem.quantity + guestItem.quantity;
+      const maxQuantity = Math.min(newQuantity, existingItem.product.stock || 0, 50);
+
+      await prisma.cartItem.update({
+        where: { id: existingItem.id },
+        data: { quantity: maxQuantity },
+      });
+    } else {
+      // Product doesn't exist, add new item
+      const product = await prisma.product.findUnique({
+        where: { id: guestItem.productId },
+      });
+
+      if (product && product.stock && product.stock > 0) {
+        const maxQuantity = Math.min(guestItem.quantity, product.stock, 50);
+
+        await prisma.cartItem.create({
+          data: {
+            cartId: targetCart.id,
+            productId: guestItem.productId,
+            quantity: maxQuantity,
+          },
+        });
+      }
+    }
+  }
+
+  // Delete guest cart and its items
+  await prisma.cart.delete({
+    where: { id: guestCartId },
+  });
+
+  // Return merged cart
+  return getCart(userId);
 };
 
 /**
@@ -277,7 +444,7 @@ export const calculateCartTotals = (cart: any, discountAmount: number = 0) => {
 };
 
 /**
- * Apply coupon to cart (NEW)
+ * Apply coupon to cart
  */
 export const applyCouponToCart = async (userId: string, couponCode: string) => {
   // Get cart
@@ -302,7 +469,7 @@ export const applyCouponToCart = async (userId: string, couponCode: string) => {
 };
 
 /**
- * Remove coupon from cart (NEW)
+ * Remove coupon from cart
  */
 export const removeCouponFromCart = async (userId: string) => {
   const cart = await getCart(userId);
@@ -318,7 +485,6 @@ export const removeCouponFromCart = async (userId: string) => {
 
 /**
  * Sync cart with server (merge local and server carts)
- * POST /api/cart/sync
  */
 export const syncCart = async (userId: string, localItems: any[]) => {
   // Get or create server cart
@@ -333,7 +499,6 @@ export const syncCart = async (userId: string, localItems: any[]) => {
       });
 
       if (!product || !product.stock || product.stock < 1) {
-        // Skip items that are no longer available
         continue;
       }
 
@@ -348,7 +513,7 @@ export const syncCart = async (userId: string, localItems: any[]) => {
       });
 
       if (existingItem) {
-        // Update to higher quantity (local or server)
+        // Update to higher quantity
         const newQuantity = Math.max(existingItem.quantity, localItem.quantity);
         const cappedQuantity = Math.min(newQuantity, product.stock, 50);
 
@@ -370,10 +535,41 @@ export const syncCart = async (userId: string, localItems: any[]) => {
       }
     } catch (error) {
       console.error(`Failed to sync item ${localItem.productId}:`, error);
-      // Continue with other items
     }
   }
 
   // Return merged cart
   return getCart(userId);
+};
+
+/**
+ * Validate cart stock atomically before checkout
+ */
+export const validateCartStock = async (userId: string): Promise<boolean> => {
+  const cart = await prisma.cart.findUnique({
+    where: { userId },
+    include: {
+      items: {
+        include: {
+          product: true,
+        },
+      },
+    },
+  });
+
+  if (!cart || !cart.items.length) {
+    throw new AppError('Cart is empty', 400);
+  }
+
+  // Check each item
+  for (const item of cart.items) {
+    if (!item.product.stock || item.product.stock < item.quantity) {
+      throw new AppError(
+        `Product "${item.product.name}" has insufficient stock (requested: ${item.quantity}, available: ${item.product.stock || 0})`,
+        400
+      );
+    }
+  }
+
+  return true;
 };

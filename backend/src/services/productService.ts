@@ -180,7 +180,7 @@ export const getFeaturedProducts = async (limit: number = 8) => {
   const products = await prisma.product.findMany({
     take: limit,
     where: {
-      stock: { gt: 0 }, // Only in-stock products
+      stock: { gt: 0 },
     },
     orderBy: [{ rating: 'desc' }, { createdAt: 'desc' }],
     include: {
@@ -204,7 +204,6 @@ export const getRelatedProducts = async (
   productId: string,
   limit: number = 4
 ) => {
-  // First get the product to find its category
   const product = await prisma.product.findUnique({
     where: { id: productId },
     select: { categoryId: true },
@@ -214,11 +213,10 @@ export const getRelatedProducts = async (
     return [];
   }
 
-  // Get products from same category
   const relatedProducts = await prisma.product.findMany({
     where: {
       categoryId: product.categoryId,
-      id: { not: productId }, // Exclude current product
+      id: { not: productId },
       stock: { gt: 0 },
     },
     take: limit,
@@ -247,5 +245,67 @@ export const searchProducts = async (
   return getAllProducts({
     ...options,
     search: query,
+  });
+};
+
+/**
+ * Check and reserve stock atomically for checkout
+ */
+export const reserveStock = async (items: Array<{ productId: string; quantity: number }>) => {
+  return await prisma.$transaction(async (tx) => {
+    const reservations = [];
+
+    for (const item of items) {
+      const product = await tx.product.findUnique({
+        where: { id: item.productId },
+        select: { id: true, name: true, stock: true },
+      });
+
+      if (!product) {
+        throw new AppError(`Product not found: ${item.productId}`, 404);
+      }
+
+      if (!product.stock || product.stock < item.quantity) {
+        throw new AppError(
+          `Insufficient stock for ${product.name} (requested: ${item.quantity}, available: ${product.stock || 0})`,
+          400
+        );
+      }
+
+      // Decrement stock
+      await tx.product.update({
+        where: { id: item.productId },
+        data: {
+          stock: {
+            decrement: item.quantity,
+          },
+        },
+      });
+
+      reservations.push({
+        productId: item.productId,
+        quantity: item.quantity,
+      });
+    }
+
+    return reservations;
+  });
+};
+
+/**
+ * Restore stock (for cancellations/refunds)
+ */
+export const restoreStock = async (items: Array<{ productId: string; quantity: number }>) => {
+  return await prisma.$transaction(async (tx) => {
+    for (const item of items) {
+      await tx.product.update({
+        where: { id: item.productId },
+        data: {
+          stock: {
+            increment: item.quantity,
+          },
+        },
+      });
+    }
   });
 };

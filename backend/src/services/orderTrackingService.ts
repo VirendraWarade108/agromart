@@ -5,7 +5,6 @@ import { AppError } from '../middleware/errorHandler';
  * Get order tracking history
  */
 export const getOrderTracking = async (orderId: string, userId?: string) => {
-  // Get order with tracking
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -19,7 +18,6 @@ export const getOrderTracking = async (orderId: string, userId?: string) => {
     throw new AppError('Order not found', 404);
   }
 
-  // Verify user access (if userId provided)
   if (userId && order.userId !== userId) {
     throw new AppError('Unauthorized to access this order', 403);
   }
@@ -37,7 +35,6 @@ export const addTrackingUpdate = async (trackingData: {
   description: string;
   metadata?: any;
 }) => {
-  // Verify order exists
   const order = await prisma.order.findUnique({
     where: { id: trackingData.orderId },
   });
@@ -46,7 +43,6 @@ export const addTrackingUpdate = async (trackingData: {
     throw new AppError('Order not found', 404);
   }
 
-  // Create tracking entry
   const tracking = await prisma.orderTracking.create({
     data: {
       orderId: trackingData.orderId,
@@ -57,7 +53,6 @@ export const addTrackingUpdate = async (trackingData: {
     },
   });
 
-  // Update order status
   await prisma.order.update({
     where: { id: trackingData.orderId },
     data: { status: trackingData.status },
@@ -155,7 +150,6 @@ export const bulkUpdateOrderStatus = async (
 export const getTrackingTimeline = async (orderId: string, userId?: string) => {
   const tracking = await getOrderTracking(orderId, userId);
 
-  // Define status flow
   const statusFlow = [
     'order_placed',
     'confirmed',
@@ -165,7 +159,6 @@ export const getTrackingTimeline = async (orderId: string, userId?: string) => {
     'delivered',
   ];
 
-  // Build timeline
   const timeline = statusFlow.map((status) => {
     const trackingEntry = tracking.find((t) => t.status === status);
     return {
@@ -177,13 +170,11 @@ export const getTrackingTimeline = async (orderId: string, userId?: string) => {
     };
   });
 
-  // Calculate estimated delivery
   const shippedEntry = tracking.find((t) => t.status === 'shipped');
   let estimatedDelivery: Date | null = null;
   if (shippedEntry) {
-    // Add 3-5 days from shipped date
     const deliveryDate = new Date(shippedEntry.timestamp);
-    deliveryDate.setDate(deliveryDate.getDate() + 4); // Average 4 days
+    deliveryDate.setDate(deliveryDate.getDate() + 4);
     estimatedDelivery = deliveryDate;
   }
 

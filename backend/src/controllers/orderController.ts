@@ -4,10 +4,6 @@ import * as cartService from '../services/cartService';
 import * as orderService from '../services/orderService';
 import * as orderTrackingService from '../services/orderTrackingService';
 
-// ============================================
-// CART CONTROLLERS
-// ============================================
-
 /**
  * Get user's cart
  * GET /api/cart
@@ -21,7 +17,7 @@ export const getCart = asyncHandler(async (req: Request, res: Response) => {
     success: true,
     data: {
       items: cart.items,
-      coupon: null, // Coupons are session-based, not stored in DB
+      coupon: null,
     },
   });
 });
@@ -60,7 +56,7 @@ export const addToCart = asyncHandler(async (req: Request, res: Response) => {
 export const updateCartItem = asyncHandler(
   async (req: Request, res: Response) => {
     const userId = req.userId!;
-    const { id } = req.params; // Changed from productId to id (cart item ID)
+    const { id } = req.params;
     const { quantity } = req.body;
 
     if (quantity === undefined) {
@@ -90,7 +86,7 @@ export const updateCartItem = asyncHandler(
 export const removeFromCart = asyncHandler(
   async (req: Request, res: Response) => {
     const userId = req.userId!;
-    const { id } = req.params; // Changed from productId to id (cart item ID)
+    const { id } = req.params;
 
     const cart = await cartService.removeFromCart(userId, id);
 
@@ -125,7 +121,7 @@ export const clearCart = asyncHandler(async (req: Request, res: Response) => {
 });
 
 /**
- * Apply coupon to cart (NEW)
+ * Apply coupon to cart
  * POST /api/cart/coupon
  */
 export const applyCoupon = asyncHandler(async (req: Request, res: Response) => {
@@ -156,7 +152,7 @@ export const applyCoupon = asyncHandler(async (req: Request, res: Response) => {
 });
 
 /**
- * Remove coupon from cart (NEW)
+ * Remove coupon from cart
  * DELETE /api/cart/coupon
  */
 export const removeCoupon = asyncHandler(async (req: Request, res: Response) => {
@@ -201,10 +197,6 @@ export const syncCart = asyncHandler(async (req: Request, res: Response) => {
     },
   });
 });
-
-// ============================================
-// ORDER CONTROLLERS
-// ============================================
 
 /**
  * Create order (Checkout)
@@ -270,7 +262,7 @@ export const getOrderById = asyncHandler(
 
 /**
  * Cancel order
- * PUT /api/orders/:id/cancel
+ * POST /api/orders/:id/cancel
  */
 export const cancelOrder = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.userId!;
@@ -286,7 +278,24 @@ export const cancelOrder = asyncHandler(async (req: Request, res: Response) => {
 });
 
 /**
- * Get order tracking (alias for frontend compatibility)
+ * Refund order (Admin only)
+ * POST /api/orders/:id/refund
+ */
+export const refundOrder = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { amount } = req.body;
+
+  const result = await orderService.refundOrder(id, amount);
+
+  res.json({
+    success: true,
+    message: 'Order refunded successfully',
+    data: result,
+  });
+});
+
+/**
+ * Get order tracking
  * GET /api/orders/:id/track
  */
 export const getOrderTracking = asyncHandler(
@@ -320,10 +329,6 @@ export const getOrderInvoice = asyncHandler(
     });
   }
 );
-
-// ============================================
-// ADMIN ORDER CONTROLLERS
-// ============================================
 
 /**
  * Get all orders (Admin only)
